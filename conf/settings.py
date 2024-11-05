@@ -126,7 +126,7 @@ TEMPLATES = [
         },
     },
 ]
-from promo.celery import crontab
+from celery.schedules import crontab
 CELERY_BROKER_URL = 'redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f861c56c2b6058aa927c@b94ca.openredis.io:18240'
 CELERY_RESULT_BACKEND = 'redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f861c56c2b6058aa927c@b94ca.openredis.io:18240'
 CELERY_BEAT_SCHEDULE = {
