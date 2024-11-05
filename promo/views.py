@@ -28,39 +28,31 @@ class PostbackCallbackView(APIView):
         custom_message = ""
 
         if msisdn and opi and short_number and text:
-            # Promo modelida promokod mavjudligini tekshirish
             promo = Promo.objects.filter(promo_text=text).first()
             if promo is None:
                 custom_message = "Jo’natilgan Promokod noto’g’ri!"
                 return self.send_sms(msisdn, opi, short_number, custom_message)
 
-            # PromoEntry modelida ushbu promokod oldin ro'yxatdan o'tganligini tekshirish
             if PromoEntry.objects.filter(text=text, PostbackRequest__msisdn=msisdn).exists():
                 custom_message = "Quyidagi Promokod avval ro’yxatdan o’tkazilgan!"
                 return self.send_sms(msisdn, opi, short_number, custom_message)
 
-            # Agar msisdn bazada mavjud bo'lsa, faqat sent_count ni oshirish va yangi promo saqlash
             postback_request = PostbackRequest.objects.filter(msisdn=msisdn).first()
             if postback_request:
-                # Mavjud PostbackRequest uchun sent_count ni oshirish
                 postback_request.sent_count += 1
                 postback_request.save()
-
-                # Yangi PromoEntry ni mavjud PostbackRequestga bog'lash
                 PromoEntry.objects.create(
                     PostbackRequest=postback_request,
                     text=text,
                     created_at=timezone.now()
                 )
             else:
-                # Yangi PostbackRequest va PromoEntry yaratish
                 postback_request = PostbackRequest.objects.create(
                     msisdn=msisdn,
                     opi=opi,
                     short_number=short_number,
                     sent_count=1
                 )
-
                 PromoEntry.objects.create(
                     PostbackRequest=postback_request,
                     text=text,
@@ -71,7 +63,14 @@ class PostbackCallbackView(APIView):
                 "Tabriklaymiz! Promokod qabul qilindi!\n"
                 "\"Boriga baraka\" ko'rsatuvini har Juma soat 21:00 da Jonli efirda tomosha qiling!"
             )
-            return self.send_sms(msisdn, opi, short_number, custom_message)
+
+            response = self.send_sms(msisdn, opi, short_number, custom_message)
+
+            # Qo'shimcha notification xabari yuborish uchun
+            if response.status_code == 200:
+                self.notification_sms(msisdn, opi, short_number)
+
+            return response
         else:
             return Response({"error": "Failed to send SMS"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -83,7 +82,6 @@ class PostbackCallbackView(APIView):
             'short_number': short_number,
             'message': custom_message
         }
-
         try:
             sms_response = requests.get(sms_api_url, params=params)
             sms_response.raise_for_status()
@@ -91,6 +89,26 @@ class PostbackCallbackView(APIView):
         except requests.RequestException as e:
             return Response({"error": "Failed to send SMS", "details": str(e)},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def notification_sms(self, msisdn, opi, short_number):
+        # Bugungi sanani olish
+        today = timezone.now().date()
+
+        # Faqat opi 23 uchun va Notification modeli orqali bugungi sanani tekshirish
+        notification = Notification.objects.filter(date=today).first()
+        if int(opi) == 23 and notification:
+            notification_message = notification.text
+            sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
+            params = {
+                'opi': opi,
+                'msisdn': msisdn,
+                'short_number': short_number,
+                'message': notification_message
+            }
+            try:
+                requests.get(sms_api_url, params=params)
+            except requests.RequestException as e:
+                print("Failed to send notification SMS:", e)
 
 #     ********************* Monthly date *************************
 class PromoMonthlyView(APIView):
