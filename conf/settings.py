@@ -136,7 +136,7 @@ CELERY_RESULT_BACKEND = 'redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f8
 CELERY_BEAT_SCHEDULE = {
     'send-notification-every-day-at-9am': {
         'task': 'your_app.tasks.send_notification_to_first_user_of_the_day',
-        'schedule': crontab(hour=9, minute=0),  # Har kuni soat 9:00 da
+        'schedule': crontab(hour=12, minute=25),
     },
 }
 
