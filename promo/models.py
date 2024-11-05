@@ -7,7 +7,7 @@ class PostbackRequest(models.Model):
     opi = models.IntegerField()  # Operator ID (22, 23 yoki 27)
     short_number = models.CharField(max_length=10)  # Qisqa raqam (masalan, 7500)
     sent_count = models.IntegerField(default=0)
-
+    notification_sent = models.BooleanField(default=False)
     def __str__(self):
         return f"{self.msisdn} - {self.short_number}"
 
@@ -17,6 +17,7 @@ class PromoEntry(models.Model):
     text = models.TextField()  # Abonentdan kelgan xabar
     created_at = models.DateTimeField()  # Ma'lumotlar qo'shilgan vaqt
     used = models.BooleanField(default=False)
+
     def __str__(self):
         return self.text
 

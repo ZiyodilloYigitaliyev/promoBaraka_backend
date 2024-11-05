@@ -130,15 +130,16 @@ TEMPLATES = [
         },
     },
 ]
-
+from celery.schedules import crontab
 CELERY_BROKER_URL = 'redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f861c56c2b6058aa927c@b94ca.openredis.io:18240'
 CELERY_RESULT_BACKEND = 'redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f861c56c2b6058aa927c@b94ca.openredis.io:18240'
 CELERY_BEAT_SCHEDULE = {
-    'send-notification-every-day-at-9am': {
-        'task': 'your_app.tasks.send_notification_to_first_user_of_the_day',
-        'schedule': crontab(hour=12, minute=25),
+    'reset_notification_status_daily': {
+        'task': 'your_app.tasks.reset_notification_status',
+        'schedule': crontab(hour=0, minute=0),  # Har kuni 00:00 da ishga tushadi
     },
 }
+
 
 
 

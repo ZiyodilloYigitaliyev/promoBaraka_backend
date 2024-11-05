@@ -91,24 +91,26 @@ class PostbackCallbackView(APIView):
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def notification_sms(self, msisdn, opi, short_number):
-        # Bugungi sanani olish
         today = timezone.now().date()
-
-        # Faqat opi 23 uchun va Notification modeli orqali bugungi sanani tekshirish
         notification = Notification.objects.filter(date=today).first()
+
+        # Qo'shimcha SMS faqat bir marta yuboriladi va faqat opi=23 uchun
         if int(opi) == 23 and notification:
-            notification_message = notification.text
-            sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
-            params = {
-                'opi': opi,
-                'msisdn': msisdn,
-                'short_number': short_number,
-                'message': notification_message
-            }
-            try:
-                requests.get(sms_api_url, params=params)
-            except requests.RequestException as e:
-                print("Failed to send notification SMS:", e)
+            if not PostbackRequest.objects.filter(PostbackRequest__msisdn=msisdn, notification_sent=True).exists():
+                notification_message = notification.text
+                sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
+                params = {
+                    'opi': opi,
+                    'msisdn': msisdn,
+                    'short_number': short_number,
+                    'message': notification_message
+                }
+                try:
+                    requests.get(sms_api_url, params=params)
+                    # SMS yuborilgandan so'ng flagni o'rnatish
+                    PostbackRequest.objects.filter(PostbackRequest__msisdn=msisdn).update(notification_sent=True)
+                except requests.RequestException as e:
+                    print("Failed to send notification SMS:", e)
 
 #     ********************* Monthly date *************************
 class PromoMonthlyView(APIView):
