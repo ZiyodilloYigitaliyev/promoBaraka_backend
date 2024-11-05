@@ -33,7 +33,8 @@ class PostbackCallbackView(APIView):
                 custom_message = "Jo’natilgan Promokod noto’g’ri!"
                 return self.send_sms(msisdn, opi, short_number, custom_message)
 
-            if PromoEntry.objects.filter(text=text, PostbackRequest__msisdn=msisdn).exists():
+            # Filterlashda postback_request orqali msisdn ga murojaat qiling
+            if PromoEntry.objects.filter(text=text, postback_request__msisdn=msisdn).exists():
                 custom_message = "Quyidagi Promokod avval ro’yxatdan o’tkazilgan!"
                 return self.send_sms(msisdn, opi, short_number, custom_message)
 
@@ -42,7 +43,7 @@ class PostbackCallbackView(APIView):
                 postback_request.sent_count += 1
                 postback_request.save()
                 PromoEntry.objects.create(
-                    PostbackRequest=postback_request,
+                    postback_request=postback_request,  # ForeignKey ni postback_request deb ataymiz
                     text=text,
                     created_at=timezone.now()
                 )
@@ -54,7 +55,7 @@ class PostbackCallbackView(APIView):
                     sent_count=1
                 )
                 PromoEntry.objects.create(
-                    PostbackRequest=postback_request,
+                    postback_request=postback_request,  # ForeignKey ni postback_request deb ataymiz
                     text=text,
                     created_at=timezone.now()
                 )
@@ -96,7 +97,7 @@ class PostbackCallbackView(APIView):
 
         # Qo'shimcha SMS faqat bir marta yuboriladi va faqat opi=23 uchun
         if int(opi) == 23 and notification:
-            if not PostbackRequest.objects.filter(PostbackRequest__msisdn=msisdn, notification_sent=True).exists():
+            if not PostbackRequest.objects.filter(msisdn=msisdn, notification_sent=True).exists():
                 notification_message = notification.text
                 sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
                 params = {
@@ -108,9 +109,10 @@ class PostbackCallbackView(APIView):
                 try:
                     requests.get(sms_api_url, params=params)
                     # SMS yuborilgandan so'ng flagni o'rnatish
-                    PostbackRequest.objects.filter(PostbackRequest__msisdn=msisdn).update(notification_sent=True)
+                    PostbackRequest.objects.filter(msisdn=msisdn).update(notification_sent=True)
                 except requests.RequestException as e:
                     print("Failed to send notification SMS:", e)
+
 
 #     ********************* Monthly date *************************
 class PromoMonthlyView(APIView):
