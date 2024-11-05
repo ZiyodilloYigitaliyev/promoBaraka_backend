@@ -1,4 +1,4 @@
-from promo.celery import shared_task
+from celery import shared_task
 from .models import PostbackRequest
 
 @shared_task
