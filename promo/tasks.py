@@ -1,7 +1,8 @@
 from celery import shared_task
+from django.utils import timezone
 from .models import PostbackRequest
 
 @shared_task
-def reset_notification_status():
-    # notification_sent maydonini har kuni 00:00 da False ga o'zgartiradi
-    PostbackRequest.objects.all().update(notification_sent=False)
+def reset_notification_sent():
+    # Filtrlash: faqat `True` bo'lgan qiymatlarni yangilash
+    PostbackRequest.objects.filter(notification_sent=True).update(notification_sent=False)
