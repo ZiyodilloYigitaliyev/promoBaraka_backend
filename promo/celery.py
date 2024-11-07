@@ -23,10 +23,10 @@ app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
     from promo.tasks import reset_notification_sent
-    # Har kuni soat 16:40 da `reset_notification_sent` vazifasini ishga tushirish
     sender.add_periodic_task(
-        crontab(hour=12, minute=00),
+        crontab(hour=12, minute=40),
         reset_notification_sent.s(),
     )
+
 
 
