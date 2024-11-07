@@ -2,6 +2,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
+import environ
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(os.path.join(BASE_DIR, '.env'))
@@ -127,9 +128,15 @@ TEMPLATES = [
     },
 ]
 
+env = environ.Env()
+environ.Env.read_env()
 
-# Database
-# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
+# Redis URL from Heroku
+CELERY_BROKER_URL = env('REDIS_URL', default='rediss://:pa87f4f6ec93d842280bf6cbe45917aa2ee10c47c81f4d478441e5bbad399aa53@ec2-54-72-43-199.eu-west-1.compute.amazonaws.com:7519')  # Use Redis from Heroku
+CELERY_RESULT_BACKEND = env('REDIS_URL', default='rediss://:pa87f4f6ec93d842280bf6cbe45917aa2ee10c47c81f4d478441e5bbad399aa53@ec2-54-72-43-199.eu-west-1.compute.amazonaws.com:7519')  # Result backend
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Tashkent'  # Use your timezone
 
 
 # DATABASES = {

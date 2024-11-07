@@ -9,7 +9,8 @@ def run_daily_task():
     now = datetime.now()
     print(f'Vazifa {now}da bajarildi.')
 
-# task.py
+from celery import shared_task
+
 @app.task
 def test_task():
     print("Test task is running!")
