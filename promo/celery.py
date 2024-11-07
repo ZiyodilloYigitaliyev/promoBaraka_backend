@@ -7,7 +7,7 @@ from celery.schedules import crontab
 # Django konfiguratsiyasi faylini ko'rsating
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'conf.settings')
 
-app = Celery('task')
+app = Celery('promo')
 app.conf.timezone = 'UTC'
 # Django sozlamalarini Celery'ga yuklash
 app.config_from_object('django.conf:settings', namespace='CELERY')
