@@ -16,21 +16,22 @@ app.conf.update(
     enable_utc=True,  # UTCni yoqish
 )
 
-# Periodik tasklarni yuklash uchun
-@app.on_after_configure.connect
-def setup_periodic_tasks(sender, **kwargs):
-    from promo.tasks import run_daily_task
-    sender.add_periodic_task(
-        {'hour': 22, 'minute': 15},
-        run_daily_task.s(),  # Taskni chaqirish
-        name='Har kuni soat ishlovchi task'
-    )
-
+# # Periodik tasklarni yuklash uchun
+# @app.on_after_configure.connect
+# def setup_periodic_tasks(sender, **kwargs):
+#     from promo.tasks import run_daily_task
+#     sender.add_periodic_task(
+#         {'hour': 22, 'minute': 15},
+#         run_daily_task.s(),  # Taskni chaqirish
+#         name='Har kuni soat ishlovchi task'
+#     )
+# Celery.py
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
     from promo.tasks import test_task
+    # Signature yuborish, to'g'ri ishlashi uchun
     sender.add_periodic_task(
-        crontab(minute='*/1'),  # Har 1 daqiqada test taskini ishga tushirish
-        test_task.s(),
+        crontab(minute='*/1'),  # Har 1 daqiqada bajarilishi kerak
+        test_task.s(),  # Test taskni qayta yuborish uchun signature
         name='Test task'
     )
