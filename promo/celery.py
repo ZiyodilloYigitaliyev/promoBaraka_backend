@@ -25,7 +25,7 @@ def setup_periodic_tasks(sender, **kwargs):
     from promo.tasks import reset_notification_sent
     # Har kuni soat 16:40 da `reset_notification_sent` vazifasini ishga tushirish
     sender.add_periodic_task(
-        crontab(hour=16, minute=52),
+        crontab(hour=12, minute=00),
         reset_notification_sent.s(),
     )
 
