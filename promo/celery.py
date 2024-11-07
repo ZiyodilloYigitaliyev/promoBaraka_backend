@@ -17,7 +17,7 @@ app.autodiscover_tasks()
 # Boshqa kerakli sozlamalar (optional)
 app.conf.beat_schedule = {
     'test-task': {
-        'task': 'conf.tasks.test_task',
+        'task': 'promo.tasks.test_task',
         'schedule': crontab(minute='*/1'),  # Har daqiqada ishlash
     }
 }
