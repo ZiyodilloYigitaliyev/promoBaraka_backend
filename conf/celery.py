@@ -3,12 +3,17 @@ import os
 from celery import Celery
 from celery.schedules import crontab
 
+from conf import settings
+
 # Django settings-ni to'g'ri yuklash
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'conf.settings')
 # Celery ilovasini yaratish
-app = Celery('promo')
+app = Celery('task')
 
 # Celery konfiguratsiyasi
+# Celery konfiguratsiyasi
+app.config_from_object('django.conf:settings', namespace='CELERY')
+app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 app.conf.update(
     broker_url=os.getenv('REDIS_URL', 'redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f861c56c2b6058aa927c@b94ca.openredis.io:18240'),  # Heroku Redis URL
     result_backend=os.getenv('REDIS_URL', 'redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f861c56c2b6058aa927c@b94ca.openredis.io:18240'),
