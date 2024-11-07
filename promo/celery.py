@@ -8,7 +8,7 @@ from conf import settings
 # Django settings-ni to'g'ri yuklash
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'conf.settings')
 # Celery ilovasini yaratish
-app = Celery('task')
+app = Celery('promo')
 
 # Celery konfiguratsiyasi
 app.config_from_object('django.conf:settings', namespace='CELERY')
