@@ -26,3 +26,11 @@ def setup_periodic_tasks(sender, **kwargs):
         name='Har kuni soat ishlovchi task'
     )
 
+@app.on_after_configure.connect
+def setup_periodic_tasks(sender, **kwargs):
+    from promo.tasks import test_task
+    sender.add_periodic_task(
+        crontab(minute='*/1'),  # Har 1 daqiqada test taskini ishga tushirish
+        test_task.s(),
+        name='Test task'
+    )

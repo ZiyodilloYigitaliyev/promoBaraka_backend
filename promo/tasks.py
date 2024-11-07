@@ -9,3 +9,8 @@ def run_daily_task():
     PostbackRequest.objects.update(notification_sent=False)
     now = datetime.now()
     print(f'Vazifa {now}da bajarildi.')
+
+
+@shared_task
+def test_task():
+    print("Test task is running!")
