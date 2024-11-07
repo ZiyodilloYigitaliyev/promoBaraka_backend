@@ -16,6 +16,7 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 app.conf.broker_url = 'redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f861c56c2b6058aa927c@b94ca.openredis.io:18240'
 app.conf.result_backend = 'redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f861c56c2b6058aa927c@b94ca.openredis.io:18240'
 app.conf.broker_connection_retry_on_startup = True
+CELERY_TASK_TRACK_STARTED = True
 # Celery'da vazifalarni avtomatik aniqlash
 app.autodiscover_tasks()
 
@@ -24,7 +25,7 @@ app.autodiscover_tasks()
 def setup_periodic_tasks(sender, **kwargs):
     from promo.tasks import reset_notification_sent
     sender.add_periodic_task(
-        crontab(hour=15, minute=5),
+        crontab(hour=15, minute=35),
         reset_notification_sent.s(),
     )
 
