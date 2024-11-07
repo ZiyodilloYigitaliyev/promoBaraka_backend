@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework',
     'corsheaders',
+    'django_celery_beat',
 
 ]
 REST_FRAMEWORK = {
@@ -132,7 +133,7 @@ CELERY_RESULT_BACKEND = 'redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f8
 CELERY_BEAT_SCHEDULE = {
     'reset_notification_status_daily': {
         'task': 'promo.tasks.reset_notification_status',
-        'schedule': crontab(hour=0, minute=0),  # Har kuni 00:00 da ishga tushadi
+        'schedule': crontab(hour=8, minute=20),  # UTC da 7:20, bu CET da 8:20 ga to'g'ri keladi
     },
 }
 
