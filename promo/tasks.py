@@ -11,6 +11,6 @@ def run_daily_task():
     print(f'Vazifa {now}da bajarildi.')
 
 
-@shared_task
+@app.task
 def test_task():
     print("Test task is running!")
