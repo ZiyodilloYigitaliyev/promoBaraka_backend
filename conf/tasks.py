@@ -1,9 +1,8 @@
-from .models import PostbackRequest
-from celery import Celery
+from promo.models import PostbackRequest
 from datetime import datetime
 
 # Celeryni ulash
-from .celery import app  # Bu yerda `celery.py` faylidan `app`ni import qilamiz.
+from conf.celery import app  # Bu yerda `celery.py` faylidan `app`ni import qilamiz.
 @app.task
 def run_daily_task():
     PostbackRequest.objects.update(notification_sent=False)
