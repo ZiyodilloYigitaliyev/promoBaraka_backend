@@ -1,7 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 import os
 from celery import Celery
-from promo.tasks import run_daily_task  # run_daily_task taskini import qilamiz.
+
 
 # Django settings-ni to'g'ri yuklash
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'conf.settings')
@@ -18,9 +18,9 @@ app.conf.update(
 # Periodik tasklarni yuklash uchun
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    # Har kuni soat 3:00da `run_daily_task`ni bajarish
+    from promo.tasks import run_daily_task
     sender.add_periodic_task(
-        {'hour': 16, 'minute': 22},  # 3:00 PMda ishlash
+        {'hour': 16, 'minute': 30},
         run_daily_task.s(),  # Taskni chaqirish
         name='Har kuni soat 3:00da ishlovchi task'
     )
