@@ -23,5 +23,9 @@ def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(
         {'hour': 21, 'minute': 55},
         run_daily_task.s(),  # Taskni chaqirish
-        name='Har kuni soat 3:00da ishlovchi task'
+        name='Har kuni soat ishlovchi task'
     )
+
+from datetime import datetime
+from promo.tasks import run_daily_task
+run_daily_task.apply_async(eta=datetime(2024, 11, 7, 22, 6, 0))
