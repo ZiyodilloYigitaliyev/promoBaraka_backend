@@ -6,7 +6,7 @@ from promo.tasks import run_daily_task  # run_daily_task taskini import qilamiz.
 # Django settings-ni to'g'ri yuklash
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'conf.settings')
 # Celery ilovasini yaratish
-app = Celery('promo', broker='redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f861c56c2b6058aa927c@b94ca.openredis.io:18240')
+app = Celery('promo')
 
 # Celery konfiguratsiyasi
 app.conf.update(
@@ -20,7 +20,7 @@ app.conf.update(
 def setup_periodic_tasks(sender, **kwargs):
     # Har kuni soat 3:00da `run_daily_task`ni bajarish
     sender.add_periodic_task(
-        {'hour': 16, 'minute': 18},  # 3:00 PMda ishlash
+        {'hour': 16, 'minute': 22},  # 3:00 PMda ishlash
         run_daily_task.s(),  # Taskni chaqirish
         name='Har kuni soat 3:00da ishlovchi task'
     )
