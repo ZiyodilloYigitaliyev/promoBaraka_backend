@@ -4,7 +4,7 @@ from celery import Celery
 from django.conf import settings
 from celery.schedules import crontab
 
-# Django asosiy faylini ko'rsating
+# Django konfiguratsiyasi faylini ko'rsating
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'conf.settings')
 
 app = Celery('promo')
@@ -12,9 +12,18 @@ app = Celery('promo')
 # Django sozlamalarini Celery'ga yuklash
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
-# Celery'ning vazifalarni avtomatik yuklashi
+# Redis broker va natijalar backend konfiguratsiyasi
+app.conf.broker_url = 'redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f861c56c2b6058aa927c@b94ca.openredis.io:18240'
+app.conf.result_backend = 'redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f861c56c2b6058aa927c@b94ca.openredis.io:18240'
+
+# Celery'da vazifalarni avtomatik aniqlash
 app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 
-@app.task(bind=True)
-def debug_task(self):
-    print('Request: {0!r}'.format(self.request))
+# Periodik vazifalar konfiguratsiyasi
+@app.on_after_configure.connect
+def setup_periodic_tasks(sender, **kwargs):
+    # Har kuni 8:20 da ishga tushadigan vazifa
+    sender.add_periodic_task(
+        crontab(hour=8, minute=20),
+        'promo.tasks.reset_notification_sent',  # promo.tasks modulidan reset_notification_sent vazifasini chaqiramiz
+    )
