@@ -15,7 +15,7 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 # Redis broker va natijalar backend konfiguratsiyasi
 app.conf.broker_url = 'redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f861c56c2b6058aa927c@b94ca.openredis.io:18240'
 app.conf.result_backend = 'redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f861c56c2b6058aa927c@b94ca.openredis.io:18240'
-
+app.conf.broker_connection_retry_on_startup = True
 # Celery'da vazifalarni avtomatik aniqlash
 app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 
