@@ -1,4 +1,4 @@
 web: gunicorn conf.wsgi
-worker: celery -A conf worker --loglevel=info & celery -A conf beat --loglevel=info
+worker: celery -A task worker --loglevel=info & celery -A task beat --loglevel=info
 
 
