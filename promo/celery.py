@@ -7,7 +7,7 @@ from celery.schedules import crontab
 # Django konfiguratsiyasi faylini ko'rsating
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'conf.settings')
 
-app = Celery('promo')
+app = Celery('conf')
 app.conf.timezone = 'UTC'
 # Django sozlamalarini Celery'ga yuklash
 app.config_from_object('django.conf:settings', namespace='CELERY')
@@ -24,7 +24,7 @@ app.autodiscover_tasks()
 def setup_periodic_tasks(sender, **kwargs):
     from promo.tasks import reset_notification_sent
     sender.add_periodic_task(
-        crontab(hour=13, minute=15),
+        crontab(hour=14, minute=0),
         reset_notification_sent.s(),
     )
 
