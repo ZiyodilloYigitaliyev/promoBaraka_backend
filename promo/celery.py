@@ -1,7 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 import os
 from celery import Celery
-
+from promo.tasks import run_daily_task  # run_daily_task taskini import qilamiz.
 # Celery ilovasini yaratish
 app = Celery('promo', broker='redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f861c56c2b6058aa927c@b94ca.openredis.io:18240')
 
@@ -11,7 +11,7 @@ app.conf.update(
     timezone='Asia/Tashkent',  # O'zbekiston vaqti
     enable_utc=True,  # UTCni yoqish
 )
-from tasks import run_daily_task  # run_daily_task taskini import qilamiz.
+
 # Periodik tasklarni yuklash uchun
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
