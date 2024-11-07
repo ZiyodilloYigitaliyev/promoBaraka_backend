@@ -1,3 +1,3 @@
 web: gunicorn conf.wsgi
-worker: celery -A celery.promo worker -B --loglevel=info
+worker: celery -A promo worker -B --loglevel=info
 
