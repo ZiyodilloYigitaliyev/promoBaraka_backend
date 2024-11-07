@@ -127,26 +127,6 @@ TEMPLATES = [
     },
 ]
 
-from celery.schedules import crontab
-# Celery konfiguratsiyasi
-CELERY_BROKER_URL = 'redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f861c56c2b6058aa927c@b94ca.openredis.io:18240'
-CELERY_RESULT_BACKEND = 'redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f861c56c2b6058aa927c@b94ca.openredis.io:18240'
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'UTC'  # UTC vaqtida ishlash
-CELERY_TASK_TRACK_STARTED = True  # Taskni kuzatish
-CELERY_BEAT_SCHEDULE = {
-    'reset_notification_sent_task': {
-        'task': 'promo.tasks.reset_notification_sent',
-        'schedule': crontab(hour=15, minute=35),
-    },
-}
-
-
-
-
-
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases

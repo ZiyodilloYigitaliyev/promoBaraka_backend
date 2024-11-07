@@ -1,9 +1,13 @@
-from celery import shared_task
-from django.utils import timezone
 from .models import PostbackRequest
+from celery import Celery
+from datetime import datetime
 
-@shared_task
-def reset_notification_sent():
+# Celeryni ulash
+from .celery import app  # Bu yerda `celery.py` faylidan `app`ni import qilamiz.
+@app.task
+def run_daily_task():
     # Bu yerda notification_sent maydonini yangilash
     PostbackRequest.objects.update(notification_sent=False)
-    print("notification_sent maydoni yangilandi.")
+    # Hozirgi vaqtni olish
+    now = datetime.now()
+    print(f'Vazifa {now}da bajarildi.')
