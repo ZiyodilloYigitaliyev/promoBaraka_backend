@@ -10,7 +10,8 @@ app = Celery('promo')
 
 # Celery konfiguratsiyasi
 app.conf.update(
-    result_backend='redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f861c56c2b6058aa927c@b94ca.openredis.io:18240',  # Redis backendni qo'llash
+    broker_url=os.getenv('REDIS_URL', 'redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f861c56c2b6058aa927c@b94ca.openredis.io:18240'),  # Heroku Redis URL
+    result_backend=os.getenv('REDIS_URL', 'redis://:387f7018f82b855191fdc271aac03c6caccf9c90c044f861c56c2b6058aa927c@b94ca.openredis.io:18240'),
     timezone='Asia/Tashkent',  # O'zbekiston vaqti
     enable_utc=True,  # UTCni yoqish
 )
