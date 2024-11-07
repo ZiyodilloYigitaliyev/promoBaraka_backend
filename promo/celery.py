@@ -1,7 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 import os
 from celery import Celery
-
+from celery.schedules import crontab
 
 # Django settings-ni to'g'ri yuklash
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'conf.settings')
@@ -21,11 +21,8 @@ app.conf.update(
 def setup_periodic_tasks(sender, **kwargs):
     from promo.tasks import run_daily_task
     sender.add_periodic_task(
-        {'hour': 21, 'minute': 55},
+        {'hour': 22, 'minute': 15},
         run_daily_task.s(),  # Taskni chaqirish
         name='Har kuni soat ishlovchi task'
     )
 
-from datetime import datetime
-from promo.tasks import run_daily_task
-run_daily_task.apply_async(eta=datetime(2024, 11, 7, 22, 6, 0))
