@@ -21,7 +21,7 @@ app.conf.update(
 def setup_periodic_tasks(sender, **kwargs):
     from promo.tasks import run_daily_task
     sender.add_periodic_task(
-        {'hour': 16, 'minute': 30},
+        {'hour': 16, 'minute': 45},
         run_daily_task.s(),  # Taskni chaqirish
         name='Har kuni soat 3:00da ishlovchi task'
     )
