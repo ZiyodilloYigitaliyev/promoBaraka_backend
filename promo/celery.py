@@ -24,7 +24,7 @@ app.autodiscover_tasks()
 def setup_periodic_tasks(sender, **kwargs):
     from promo.tasks import reset_notification_sent
     sender.add_periodic_task(
-        crontab(hour=14, minute=0),
+        crontab(hour=15, minute=5),
         reset_notification_sent.s(),
     )
 
