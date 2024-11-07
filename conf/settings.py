@@ -128,30 +128,13 @@ TEMPLATES = [
     },
 ]
 
-
-import ssl
-# Redis URL from Heroku
-CELERY_BROKER_URL = os.getenv('REDIS_URL', default='rediss://:pa87f4f6ec93d842280bf6cbe45917aa2ee10c47c81f4d478441e5bbad399aa53@ec2-54-72-43-199.eu-west-1.compute.amazonaws.com:7519')  # Use Redis from Heroku
-CELERY_RESULT_BACKEND = os.getenv# SSL sertifikatini talab qilish
-from urllib.parse import urlparse
-from celery import Celery
-
-broker_url = CELERY_BROKER_URL
-parsed_url = urlparse(broker_url)
-
-# Agar 'rediss' protokoli ishlatilsa, SSL sertifikatini qo'shish kerak
-if parsed_url.scheme == 'rediss':
-    CELERY_BROKER_OPTIONS = {
-        'ssl_cert_reqs': ssl.CERT_REQUIRED,  # SSL sertifikatini talab qilamiz
-        'ssl_ca_certs': '/path/to/ca.pem',   # CA sertifikati (Heroku uchun odatda kerak emas)
-        'ssl_keyfile': '/path/to/keyfile',   # Xususiy kalit (Kerak emas, agar mavjud bo'lmasa)
-        'ssl_certfile': '/path/to/certfile'  # Sertifikat (Kerak emas)
-    }
-
-# Celery parametrlarini o'rnatish
+# Celery sozlamalari
+CELERY_BROKER_URL = os.getenv('REDIS_URL', 'rediss://:pa87f4f6ec93d842280bf6cbe45917aa2ee10c47c81f4d478441e5bbad399aa53@ec2-54-72-43-199.eu-west-1.compute.amazonaws.com:7519')  # Heroku Redis URL
+CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'rediss://:pa87f4f6ec93d842280bf6cbe45917aa2ee10c47c81f4d478441e5bbad399aa53@ec2-54-72-43-199.eu-west-1.compute.amazonaws.com:7519')  # Heroku Redis URL
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'Asia/Tashkent'
+CELERY_TIMEZONE = 'Asia/Tashkent'  # O'zingizning vaqt zonangiz
+
 
 # DATABASES = {
 #     'default': {

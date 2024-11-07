@@ -10,6 +10,10 @@ def run_daily_task():
     print(f'Vazifa {now}da bajarildi.')
 
 
-@app.task
+
+
+from celery import shared_task
+
+@shared_task
 def test_task():
     print("Test task is running!")
