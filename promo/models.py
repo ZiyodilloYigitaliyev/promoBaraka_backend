@@ -14,7 +14,7 @@ class PostbackRequest(models.Model):
 
 class PromoEntry(models.Model):
     postback_request = models.ForeignKey(PostbackRequest, on_delete=models.CASCADE)
-    text = models.TextField()  # Abonentdan kelgan xabar
+    text = models.TextField(unique=True)  # Abonentdan kelgan xabar
     created_at = models.DateTimeField()  # Ma'lumotlar qo'shilgan vaqt
     used = models.BooleanField(default=False)
 
@@ -22,14 +22,15 @@ class PromoEntry(models.Model):
         return self.text
 
 class Promo(models.Model):
-    promo_text = models.CharField(max_length=25)
+    promo_text = models.CharField(max_length=25, unique=True)
 
     def __str__(self):
         return self.promo_text
 
 
 class Notification(models.Model):
-    date = models.DateField()  # Jo'natilish sanasi
+    date = models.DateField()
+    opi = models.IntegerField()  # Operator ID (22, 23 yoki 27)
     text = models.TextField()  # Xabar matni
 
     def __str__(self):
