@@ -281,6 +281,7 @@ def reset_notification_sent():
 
 # GET so'rovni qabul qiladigan view
 class ResetNotificationView(APIView):
+    permission_classes = [AllowAny]
     def get(self, request):
         # notification_sent maydonini yangilash
         updated_count = reset_notification_sent()
