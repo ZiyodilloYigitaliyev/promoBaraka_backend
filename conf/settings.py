@@ -128,13 +128,6 @@ TEMPLATES = [
     },
 ]
 
-# Celery sozlamalari
-CELERY_BROKER_URL = os.getenv('REDIS_URL', 'rediss://:pa87f4f6ec93d842280bf6cbe45917aa2ee10c47c81f4d478441e5bbad399aa53@ec2-54-72-43-199.eu-west-1.compute.amazonaws.com:7519')  # Heroku Redis URL
-CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'rediss://:pa87f4f6ec93d842280bf6cbe45917aa2ee10c47c81f4d478441e5bbad399aa53@ec2-54-72-43-199.eu-west-1.compute.amazonaws.com:7519')  # Heroku Redis URL
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'Asia/Tashkent'  # O'zingizning vaqt zonangiz
-
 
 # DATABASES = {
 #     'default': {

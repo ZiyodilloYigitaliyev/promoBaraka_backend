@@ -273,5 +273,21 @@ class PromoCreateView(APIView):
             return Response({"error": f"Xatolik: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+# notification_sent maydonini yangilaydigan funksiya
+def reset_notification_sent():
+    updated_count = PostbackRequest.objects.filter(notification_sent=True).update(notification_sent=False)
+    return updated_count
 
+
+# GET so'rovni qabul qiladigan view
+class ResetNotificationView(APIView):
+    def get(self, request):
+        # notification_sent maydonini yangilash
+        updated_count = reset_notification_sent()
+
+        # Javob qaytarish
+        return Response({
+            "status": "success",
+            "message": f"{updated_count} ta yozuv yangilandi",
+        }, status=status.HTTP_200_OK)
 
