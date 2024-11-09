@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.db.models.functions import TruncMonth
 import calendar
+from django.utils.dateparse import parse_datetime
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from datetime import timedelta, datetime
 from rest_framework.viewsets import ViewSet
@@ -292,3 +293,44 @@ class ResetNotificationView(APIView):
             "message": f"{updated_count} ta yozuv yangilandi",
         }, status=status.HTTP_200_OK)
 
+class PostbackRequestCreateView(APIView):
+    def post(self, request, *args, **kwargs):
+        data = request.data
+        
+        # PostbackRequest ma'lumotlarini JSON'dan olamiz
+        msisdn = data.get("msisdn")
+        opi = data.get("opi")
+        short_number = data.get("short_number")
+        sent_count = data.get("sent_count", 0)
+
+        # PostbackRequest ob'ektini yaratamiz yoki mavjud bo'lsa olamiz
+        postback_request, created = PostbackRequest.objects.get_or_create(
+            msisdn=msisdn,
+            opi=opi,
+            short_number=short_number,
+            defaults={'sent_count': sent_count}
+        )
+
+        if not created:
+            postback_request.sent_count = sent_count  # Agar mavjud bo'lsa, sent_count yangilanadi
+            postback_request.save()
+
+        # PromoEntry ma'lumotlarini JSON'dagi promos listidan olamiz
+        promos = data.get("promos", [])
+        for promo_data in promos:
+            text = promo_data.get("text")
+            created_at_str = promo_data.get("created_at")
+            created_at = parse_datetime(created_at_str) if created_at_str else None
+            used = promo_data.get("used", False)
+
+            # PromoEntry ob'ektini yaratamiz yoki mavjud bo'lsa olamiz
+            PromoEntry.objects.get_or_create(
+                postback_request=postback_request,
+                text=text,
+                defaults={
+                    'created_at': created_at,
+                    'used': used
+                }
+            )
+
+        return Response({"message": "Ma'lumotlar muvaffaqiyatli saqlandi"}, status=status.HTTP_201_CREATED)
