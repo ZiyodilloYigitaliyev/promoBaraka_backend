@@ -293,9 +293,47 @@ class ResetNotificationView(APIView):
             "message": f"{updated_count} ta yozuv yangilandi",
         }, status=status.HTTP_200_OK)
 
-class PostbackRequestCreateView(APIView):
+class UploadJsonView(APIView):
     permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
+        data = request.data
+
+        # Ma'lumotlarni validatsiyadan o'tkazish
+        if not isinstance(data, list):
+            return Response({"error": "JSON list formatida bo'lishi kerak."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Atomar transaction: hammasi yoki hech narsa saqlanmaydi
+            with transaction.atomic():
+                for item in data:
+                    # `PostbackRequest` yozuvini yaratish yoki yangilash
+                    postback_request, created = PostbackRequest.objects.update_or_create(
+                        msisdn=item.get("msisdn"),
+                        opi=item.get("opi"),
+                        short_number=item.get("short_number"),
+                        defaults={
+                            "sent_count": item.get("sent_count", 0),
+                        }
+                    )
+
+                    # `promos` ro'yxatidan `PromoEntry` yozuvlarini yaratish
+                    promos = item.get("promos", [])
+                    for promo in promos:
+                        PromoEntry.objects.update_or_create(
+                            postback_request=postback_request,
+                            text=promo.get("text"),
+                            defaults={
+                                "created_at": parse_datetime(promo.get("created_at")),
+                                "used": promo.get("used", False),
+                            }
+                        )
+
+            return Response({"success": "Ma'lumotlar muvaffaqiyatli saqlandi."}, status=status.HTTP_201_CREATED)
+        
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
         data = request.data
         
         # PostbackRequest ma'lumotlarini JSON'dan olamiz
