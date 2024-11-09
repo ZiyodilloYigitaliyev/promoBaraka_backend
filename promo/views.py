@@ -294,6 +294,7 @@ class ResetNotificationView(APIView):
         }, status=status.HTTP_200_OK)
 
 class PostbackRequestCreateView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
         data = request.data
         
