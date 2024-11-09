@@ -8,6 +8,9 @@ from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.db.models.functions import TruncMonth
 import calendar
+from django.http import JsonResponse
+from django.views import View
+from .utils import fetch_and_save_data
 from django.utils.dateparse import parse_datetime
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from datetime import timedelta, datetime
@@ -293,83 +296,9 @@ class ResetNotificationView(APIView):
             "message": f"{updated_count} ta yozuv yangilandi",
         }, status=status.HTTP_200_OK)
 
-class UploadJsonView(APIView):
-    permission_classes = [AllowAny]
-    def post(self, request, *args, **kwargs):
-        data = request.data
-
-        # Ma'lumotlarni validatsiyadan o'tkazish
-        if not isinstance(data, list):
-            return Response({"error": "JSON list formatida bo'lishi kerak."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        try:
-            # Atomar transaction: hammasi yoki hech narsa saqlanmaydi
-            with transaction.atomic():
-                for item in data:
-                    # `PostbackRequest` yozuvini yaratish yoki yangilash
-                    postback_request, created = PostbackRequest.objects.update_or_create(
-                        msisdn=item.get("msisdn"),
-                        opi=item.get("opi"),
-                        short_number=item.get("short_number"),
-                        defaults={
-                            "sent_count": item.get("sent_count", 0),
-                        }
-                    )
-
-                    # `promos` ro'yxatidan `PromoEntry` yozuvlarini yaratish
-                    promos = item.get("promos", [])
-                    for promo in promos:
-                        PromoEntry.objects.update_or_create(
-                            postback_request=postback_request,
-                            text=promo.get("text"),
-                            defaults={
-                                "created_at": parse_datetime(promo.get("created_at")),
-                                "used": promo.get("used", False),
-                            }
-                        )
-
-            return Response({"success": "Ma'lumotlar muvaffaqiyatli saqlandi."}, status=status.HTTP_201_CREATED)
-        
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+ 
+class FetchAndSaveDataView(View):
+    def get(self, request):
+        fetch_and_save_data()  # Ma'lumotlarni API dan yuklab olish va saqlash
+        return JsonResponse({"message": "Data successfully fetched and saved!"})
     
-
-        data = request.data
-        
-        # PostbackRequest ma'lumotlarini JSON'dan olamiz
-        msisdn = data.get("msisdn")
-        opi = data.get("opi")
-        short_number = data.get("short_number")
-        sent_count = data.get("sent_count", 0)
-
-        # PostbackRequest ob'ektini yaratamiz yoki mavjud bo'lsa olamiz
-        postback_request, created = PostbackRequest.objects.get_or_create(
-            msisdn=msisdn,
-            opi=opi,
-            short_number=short_number,
-            defaults={'sent_count': sent_count}
-        )
-
-        if not created:
-            postback_request.sent_count = sent_count  # Agar mavjud bo'lsa, sent_count yangilanadi
-            postback_request.save()
-
-        # PromoEntry ma'lumotlarini JSON'dagi promos listidan olamiz
-        promos = data.get("promos", [])
-        for promo_data in promos:
-            text = promo_data.get("text")
-            created_at_str = promo_data.get("created_at")
-            created_at = parse_datetime(created_at_str) if created_at_str else None
-            used = promo_data.get("used", False)
-
-            # PromoEntry ob'ektini yaratamiz yoki mavjud bo'lsa olamiz
-            PromoEntry.objects.get_or_create(
-                postback_request=postback_request,
-                text=text,
-                defaults={
-                    'created_at': created_at,
-                    'used': used
-                }
-            )
-
-        return Response({"message": "Ma'lumotlar muvaffaqiyatli saqlandi"}, status=status.HTTP_201_CREATED)
