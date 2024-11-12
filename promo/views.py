@@ -1,5 +1,7 @@
 import requests
 import chardet
+from rest_framework.parsers import FileUploadParser
+import json
 from django.db import transaction
 from rest_framework import viewsets, status
 from django.core.files.storage import default_storage
@@ -297,8 +299,19 @@ class ResetNotificationView(APIView):
  
 class FetchAndSaveDataView(APIView):
     permission_classes = [AllowAny]
-    def post(self, request):
-        data = request.data  # Kiritilgan JSON ma'lumotlarni olish
+    parser_classes = [FileUploadParser]  # Fayl yuklash uchun parser o'rnatildi
+
+    def post(self, request, format=None):
+        # Faylni olish va JSON formatida o'qish
+        file = request.FILES.get('file')
+        if not file:
+            return Response({"error": "Fayl kiritilmagan"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Fayldan JSON o'qish
+            data = json.load(file)
+        except json.JSONDecodeError:
+            return Response({"error": "Fayl JSON formatida emas"}, status=status.HTTP_400_BAD_REQUEST)
 
         if not isinstance(data, list):
             return Response({"error": "Ma'lumotlar ro'yxat formatida bo'lishi kerak"}, status=status.HTTP_400_BAD_REQUEST)
