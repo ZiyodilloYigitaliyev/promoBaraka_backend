@@ -10,14 +10,12 @@ from django.db.models.functions import TruncMonth
 import calendar
 from django.http import JsonResponse
 from django.views import View
-from .utils import fetch_and_save_data
 from django.utils.dateparse import parse_datetime
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from datetime import timedelta, datetime
 from rest_framework.viewsets import ViewSet
-
 from .serializers import *
-from django.utils import timezone
+
 
 
 class PostbackCallbackView(APIView):
