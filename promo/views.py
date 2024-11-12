@@ -17,7 +17,6 @@ from rest_framework.viewsets import ViewSet
 from .serializers import *
 
 
-
 class PostbackCallbackView(APIView):
     permission_classes = [AllowAny]
 
@@ -296,7 +295,7 @@ class ResetNotificationView(APIView):
 
  
 class FetchAndSaveDataView(APIView):
-
+    permission_classes = [AllowAny]
     def post(self, request):
         data = request.data  # Kiritilgan JSON ma'lumotlarni olish
 
