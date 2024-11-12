@@ -145,7 +145,7 @@ class PromoMonthlyView(APIView):
                 # Berilgan oy uchun PromoEntry yozuvlarini olish
                 promos_in_month = PromoEntry.objects.filter(
                     created_at__range=(start_date, end_date)
-                ).select_related('PostbackRequest')
+                ).select_related('postback_request')
 
                 # PostbackRequest'ni promos bilan bog'lash
                 promos_grouped = {}
@@ -196,7 +196,7 @@ class PromoMonthlyView(APIView):
                 # Promolarni olish
                 promos_in_month = PromoEntry.objects.filter(
                     created_at__range=(start_date, end_date)
-                ).select_related('PostbackRequest')
+                ).select_related('postback_request')
 
                 # Promolarni guruhlash
                 promos_grouped = {}
