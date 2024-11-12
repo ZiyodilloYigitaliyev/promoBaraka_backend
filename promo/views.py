@@ -297,8 +297,42 @@ class ResetNotificationView(APIView):
         }, status=status.HTTP_200_OK)
 
  
-class FetchAndSaveDataView(View):
-    def get(self, request):
-        fetch_and_save_data()  # Ma'lumotlarni API dan yuklab olish va saqlash
-        return JsonResponse({"message": "Data successfully fetched and saved!"})
+class FetchAndSaveDataView(APIView):
+
+    def post(self, request):
+        data = request.data  # Kiritilgan JSON ma'lumotlarni olish
+
+        if not isinstance(data, list):
+            return Response({"error": "Ma'lumotlar ro'yxat formatida bo'lishi kerak"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            with transaction.atomic():  # Transaction bilan, shunda ma'lumotlar bir vaqtda saqlanadi
+                for item in data:
+                    # PostbackRequest yaratish yoki yangilash
+                    postback_request, created = PostbackRequest.objects.update_or_create(
+                        msisdn=item.get("msisdn"),
+                        opi=item.get("opi"),
+                        short_number=item.get("short_number"),
+                        defaults={
+                            "sent_count": item.get("sent_count", 0),
+                        }
+                    )
+
+                    # PromoEntry obyektlarini yaratish
+                    promos = item.get("promos", [])
+                    for promo in promos:
+                        PromoEntry.objects.update_or_create(
+                            postback_request=postback_request,
+                            text=promo.get("text"),
+                            defaults={
+                                "created_at": promo.get("created_at", timezone.now()),
+                                "used": promo.get("used", False),
+                            }
+                        )
+
+            return Response({"message": "Ma'lumotlar muvaffaqiyatli saqlandi"}, status=status.HTTP_201_CREATED)
+        
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
     
