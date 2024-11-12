@@ -100,7 +100,7 @@ class PostbackCallbackView(APIView):
         notification = Notification.objects.filter(date=today).first()
 
         # Qo'shimcha SMS faqat bir marta yuboriladi va faqat opi=23 uchun
-        if int(opi) == 23 and notification:
+        if int(opi) == 27 and notification:
             if not PostbackRequest.objects.filter(msisdn=msisdn, notification_sent=True).exists():
                 notification_message = notification.text
                 sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
