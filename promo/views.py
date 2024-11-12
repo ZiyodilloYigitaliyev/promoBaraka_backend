@@ -299,16 +299,13 @@ class ResetNotificationView(APIView):
  
 class FetchAndSaveDataView(APIView):
     permission_classes = [AllowAny]
-    parser_classes = [FileUploadParser]  # Fayl yuklash uchun parser o'rnatildi
-
     def post(self, request, format=None):
-        # Faylni olish va JSON formatida o'qish
+        # JSON formatidagi faylni olish
         file = request.FILES.get('file')
         if not file:
             return Response({"error": "Fayl kiritilmagan"}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            # Fayldan JSON o'qish
             data = json.load(file)
         except json.JSONDecodeError:
             return Response({"error": "Fayl JSON formatida emas"}, status=status.HTTP_400_BAD_REQUEST)
@@ -319,46 +316,51 @@ class FetchAndSaveDataView(APIView):
         duplicate_promos = []  # Qayta yozilmoqchi bo'lgan promokodlarni saqlash
 
         try:
-            with transaction.atomic():  # Transaction bilan, shunda ma'lumotlar bir vaqtda saqlanadi
+            with transaction.atomic():  # Transaction, shunda barcha ma'lumotlar bir vaqtda saqlanadi
                 for item in data:
+                    msisdn = item.get("msisdn")
+                    opi = item.get("opi")
+                    short_number = item.get("short_number")
+                    sent_count = item.get("sent_count", 0)
+
                     # PostbackRequest yaratish yoki yangilash
                     postback_request, created = PostbackRequest.objects.update_or_create(
-                        msisdn=item.get("msisdn"),
-                        opi=item.get("opi"),
-                        short_number=item.get("short_number"),
-                        defaults={
-                            "sent_count": item.get("sent_count", 0),
-                        }
+                        msisdn=msisdn,
+                        opi=opi,
+                        short_number=short_number,
+                        defaults={"sent_count": sent_count},
                     )
 
-                    # PromoEntry obyektlarini yaratish
+                    # PromoEntry obyektlarini yaratish yoki mavjudlarini qoldirish
                     promos = item.get("promos", [])
                     for promo in promos:
                         promo_text = promo.get("text")
+                        created_at = promo.get("created_at", timezone.now())
+                        used = promo.get("used", False)
+
+                        # PromoEntry filtr bilan tekshirish
+                        existing_promo = PromoEntry.objects.filter(text=promo_text).first()
                         
-                        # Tekshirish: PromoEntry mavjudligini aniqlash
-                        if PromoEntry.objects.filter(text=promo_text).exists():
+                        if existing_promo:
                             # Agar promo mavjud bo'lsa, uni duplicate_promos ro'yxatiga qo'shamiz
                             duplicate_promos.append({
-                                "id": promo.get("id"),
                                 "text": promo_text,
+                                "created_at": existing_promo.created_at,
                             })
-                            continue  # Takrorlangan promolarni tashlab ketadi
-                        
-                        # Yangi PromoEntry yaratish
-                        PromoEntry.objects.create(
-                            postback_request=postback_request,
-                            text=promo_text,
-                            created_at=promo.get("created_at", timezone.now()),
-                            used=promo.get("used", False),
-                        )
+                        else:
+                            # Yangi PromoEntry yaratish
+                            PromoEntry.objects.create(
+                                postback_request=postback_request,
+                                text=promo_text,
+                                created_at=created_at,
+                                used=used,
+                            )
 
             response_data = {
                 "message": "Ma'lumotlar muvaffaqiyatli saqlandi",
-                "duplicate_promos": duplicate_promos  # Qayta yozilmoqchi bo'lgan promolarni qaytarish
+                "duplicate_promos": duplicate_promos
             }
             return Response(response_data, status=status.HTTP_201_CREATED)
         
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-    
