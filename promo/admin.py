@@ -4,9 +4,10 @@ from django.db.models import Count
 @admin.register(PostbackRequest)
 class PostbackRequestAdmin(admin.ModelAdmin):
     list_display = ('msisdn', 'opi', 'short_number', 'sent_count')
-
+    search_fields = ['promo_text'] 
 class PromoEntryAdmin(admin.ModelAdmin):
     list_display = ('text', 'created_at')
+    search_fields = ['promo_text'] 
 admin.site.register(PromoEntry, PromoEntryAdmin)
 
 
