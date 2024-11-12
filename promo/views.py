@@ -316,6 +316,8 @@ class FetchAndSaveDataView(APIView):
         if not isinstance(data, list):
             return Response({"error": "Ma'lumotlar ro'yxat formatida bo'lishi kerak"}, status=status.HTTP_400_BAD_REQUEST)
 
+        duplicate_promos = []  # Qayta yozilmoqchi bo'lgan promokodlarni saqlash
+
         try:
             with transaction.atomic():  # Transaction bilan, shunda ma'lumotlar bir vaqtda saqlanadi
                 for item in data:
@@ -332,16 +334,29 @@ class FetchAndSaveDataView(APIView):
                     # PromoEntry obyektlarini yaratish
                     promos = item.get("promos", [])
                     for promo in promos:
-                        PromoEntry.objects.update_or_create(
-                            postback_request=postback_request,
-                            text=promo.get("text"),
-                            defaults={
-                                "created_at": promo.get("created_at", timezone.now()),
-                                "used": promo.get("used", False),
-                            }
-                        )
+                        promo_text = promo.get("text")
+                        existing_promo = PromoEntry.objects.filter(text=promo_text).first()
+                        
+                        if existing_promo:
+                            # Agar promo mavjud bo'lsa, uni duplicate_promos ro'yxatiga qo'shamiz
+                            duplicate_promos.append({
+                                "id": promo.get("id"),
+                                "text": promo_text,
+                            })
+                        else:
+                            # Yangi PromoEntry yaratish
+                            PromoEntry.objects.create(
+                                postback_request=postback_request,
+                                text=promo_text,
+                                created_at=promo.get("created_at", timezone.now()),
+                                used=promo.get("used", False),
+                            )
 
-            return Response({"message": "Ma'lumotlar muvaffaqiyatli saqlandi"}, status=status.HTTP_201_CREATED)
+            response_data = {
+                "message": "Ma'lumotlar muvaffaqiyatli saqlandi",
+                "duplicate_promos": duplicate_promos
+            }
+            return Response(response_data, status=status.HTTP_201_CREATED)
         
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
