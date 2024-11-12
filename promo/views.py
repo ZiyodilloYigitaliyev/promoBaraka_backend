@@ -1,5 +1,6 @@
 import requests
 import chardet
+from django.db import transaction
 from rest_framework import viewsets, status
 from django.core.files.storage import default_storage
 from rest_framework.permissions import IsAuthenticated, AllowAny
