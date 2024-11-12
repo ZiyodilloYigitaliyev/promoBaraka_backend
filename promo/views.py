@@ -335,30 +335,30 @@ class FetchAndSaveDataView(APIView):
                     promos = item.get("promos", [])
                     for promo in promos:
                         promo_text = promo.get("text")
-                        existing_promo = PromoEntry.objects.filter(text=promo_text).first()
                         
-                        if existing_promo:
+                        # Tekshirish: PromoEntry mavjudligini aniqlash
+                        if PromoEntry.objects.filter(text=promo_text).exists():
                             # Agar promo mavjud bo'lsa, uni duplicate_promos ro'yxatiga qo'shamiz
                             duplicate_promos.append({
                                 "id": promo.get("id"),
                                 "text": promo_text,
                             })
-                        else:
-                            # Yangi PromoEntry yaratish
-                            PromoEntry.objects.create(
-                                postback_request=postback_request,
-                                text=promo_text,
-                                created_at=promo.get("created_at", timezone.now()),
-                                used=promo.get("used", False),
-                            )
+                            continue  # Takrorlangan promolarni tashlab ketadi
+                        
+                        # Yangi PromoEntry yaratish
+                        PromoEntry.objects.create(
+                            postback_request=postback_request,
+                            text=promo_text,
+                            created_at=promo.get("created_at", timezone.now()),
+                            used=promo.get("used", False),
+                        )
 
             response_data = {
                 "message": "Ma'lumotlar muvaffaqiyatli saqlandi",
-                "duplicate_promos": duplicate_promos
+                "duplicate_promos": duplicate_promos  # Qayta yozilmoqchi bo'lgan promolarni qaytarish
             }
             return Response(response_data, status=status.HTTP_201_CREATED)
         
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-    
     
