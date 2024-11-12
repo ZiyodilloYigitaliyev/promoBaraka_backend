@@ -145,12 +145,12 @@ class PromoMonthlyView(APIView):
                 # Berilgan oy uchun PromoEntry yozuvlarini olish
                 promos_in_month = PromoEntry.objects.filter(
                     created_at__range=(start_date, end_date)
-                ).select_related('postback_request')
+                ).select_related('postback_request')  # postback_request bilan bog'lash
 
                 # PostbackRequest'ni promos bilan bog'lash
                 promos_grouped = {}
                 for entry in promos_in_month:
-                    postback_request = entry.PostbackRequest
+                    postback_request = entry.postback_request  # postback_request maydoni bilan bog'lanish
                     if postback_request.msisdn not in promos_grouped:
                         promos_grouped[postback_request.msisdn] = {
                             "sent_count": 0,
@@ -165,12 +165,6 @@ class PromoMonthlyView(APIView):
                         "text": entry.text,
                         "created_at": entry.created_at.isoformat()
                     })
-
-                # Foydalanuvchilarni hisoblash
-                users_in_month = PostbackRequest.objects.filter(
-                    promoentry__created_at__range=(start_date, end_date)
-                ).distinct()
-
                 # Natija tuzish
                 result = {
                     "month": calendar.month_name[month].lower(),
@@ -182,6 +176,7 @@ class PromoMonthlyView(APIView):
 
         # Agar month va year kiritilmagan bo'lsa, barcha oylardagi ma'lumotlarni qaytarish
         else:
+            # Barcha oylardagi ma'lumotlarni olish
             entries = PromoEntry.objects.annotate(month=TruncMonth('created_at')).values('month').distinct()
 
             result = {}
@@ -201,7 +196,7 @@ class PromoMonthlyView(APIView):
                 # Promolarni guruhlash
                 promos_grouped = {}
                 for entry in promos_in_month:
-                    postback_request = entry.PostbackRequest
+                    postback_request = entry.postback_request  # postback_request maydoni bilan bog'lanish
                     if postback_request.msisdn not in promos_grouped:
                         promos_grouped[postback_request.msisdn] = {
                             "sent_count": 0,
@@ -226,7 +221,6 @@ class PromoMonthlyView(APIView):
                 }
 
         return Response(result, status=status.HTTP_200_OK)
-
 class PromoEntryList(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, *args, **kwargs):
