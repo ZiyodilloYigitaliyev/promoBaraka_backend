@@ -7,7 +7,7 @@ class PostbackRequestAdmin(admin.ModelAdmin):
     search_fields = ['msisdn'] 
 class PromoEntryAdmin(admin.ModelAdmin):
     list_display = ('text', 'created_at')
-    search_fields = ['promo_text']
+    search_fields = ['text']
     actions = ['delete_selected_promos', 'delete_duplicates']  # Tugmalar ro'yxati
     # Takrorlangan promokodlarni o'chirish funksiyasi
     def delete_duplicates(self, request, queryset=None):
