@@ -22,7 +22,21 @@ from .serializers import *
 
 class PostbackCallbackView(APIView):
     permission_classes = [AllowAny]
-
+    def send_sms(self, msisdn, opi, short_number, custom_message):
+        sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
+        params = {
+            'opi': opi,
+            'msisdn': msisdn,
+            'short_number': short_number,
+            'message': custom_message
+        }
+        try:
+            sms_response = requests.get(sms_api_url, params=params)
+            sms_response.raise_for_status()
+            return Response({'message': custom_message}, status=status.HTTP_200_OK)
+        except requests.RequestException as e:
+            return Response({"error": "Failed to send SMS", "details": str(e)},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)    
     def get(self, request, *args, **kwargs):
         msisdn = request.query_params.get('msisdn')
         opi = request.query_params.get('opi')
@@ -47,7 +61,7 @@ class PostbackCallbackView(APIView):
                 postback_request.sent_count += 1
                 postback_request.save()
                 PromoEntry.objects.create(
-                    postback_request=postback_request,  # ForeignKey ni postback_request deb ataymiz
+                    postback_request=postback_request, 
                     text=text,
                     created_at=timezone.now()
                 )
@@ -59,7 +73,7 @@ class PostbackCallbackView(APIView):
                     sent_count=1
                 )
                 PromoEntry.objects.create(
-                    postback_request=postback_request,  # ForeignKey ni postback_request deb ataymiz
+                    postback_request=postback_request, 
                     text=text,
                     created_at=timezone.now()
                 )
@@ -71,51 +85,37 @@ class PostbackCallbackView(APIView):
 
             response = self.send_sms(msisdn, opi, short_number, custom_message)
 
-            # Qo'shimcha notification xabari yuborish uchun
-            if response.status_code == 200:
-                self.notification_sms(msisdn, opi, short_number)
+            # # Qo'shimcha notification xabari yuborish uchun
+            # if response.status_code == 200:
+            #     self.notification_sms(msisdn, opi, short_number)
 
             return response
         else:
             return Response({"error": "Failed to send SMS"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def send_sms(self, msisdn, opi, short_number, custom_message):
-        sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
-        params = {
-            'opi': opi,
-            'msisdn': msisdn,
-            'short_number': short_number,
-            'message': custom_message
-        }
-        try:
-            sms_response = requests.get(sms_api_url, params=params)
-            sms_response.raise_for_status()
-            return Response({'message': custom_message}, status=status.HTTP_200_OK)
-        except requests.RequestException as e:
-            return Response({"error": "Failed to send SMS", "details": str(e)},
-                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def notification_sms(self, msisdn, opi, short_number):
-        today = timezone.now().date()
-        notification = Notification.objects.filter(date=today).first()
 
-        # Qo'shimcha SMS faqat bir marta yuboriladi va faqat opi=23 uchun
-        if int(opi) == 27 and notification:
-            if not PostbackRequest.objects.filter(msisdn=msisdn, notification_sent=True).exists():
-                notification_message = notification.text
-                sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
-                params = {
-                    'opi': opi,
-                    'msisdn': msisdn,
-                    'short_number': short_number,
-                    'message': notification_message
-                }
-                try:
-                    requests.get(sms_api_url, params=params)
-                    # SMS yuborilgandan so'ng flagni o'rnatish
-                    PostbackRequest.objects.filter(msisdn=msisdn).update(notification_sent=True)
-                except requests.RequestException as e:
-                    print("Failed to send notification SMS:", e)
+    # def notification_sms(self, msisdn, opi, short_number):
+    #     today = timezone.now().date()
+    #     notification = Notification.objects.filter(date=today).first()
+
+    #     # Qo'shimcha SMS faqat bir marta yuboriladi va faqat opi=23 uchun
+    #     if int(opi) == 27 and notification:
+    #         if not PostbackRequest.objects.filter(msisdn=msisdn, notification_sent=True).exists():
+    #             notification_message = notification.text
+    #             sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
+    #             params = {
+    #                 'opi': opi,
+    #                 'msisdn': msisdn,
+    #                 'short_number': short_number,
+    #                 'message': notification_message
+    #             }
+    #             try:
+    #                 requests.get(sms_api_url, params=params)
+    #                 # SMS yuborilgandan so'ng flagni o'rnatish
+    #                 PostbackRequest.objects.filter(msisdn=msisdn).update(notification_sent=True)
+    #             except requests.RequestException as e:
+    #                 print("Failed to send notification SMS:", e)
 
 
 #     ********************* Monthly date *************************
