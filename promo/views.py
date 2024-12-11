@@ -50,9 +50,8 @@ class PostbackCallbackView(APIView):
             if promo is None:
                 custom_message = "Jo’natilgan Promokod noto’g’ri!"
                 return self.send_sms(msisdn, opi, short_number, custom_message)
-
-            # Filterlashda postback_request orqali msisdn ga murojaat qiling
-            if PromoEntry.objects.filter(postback_request__msisdn=msisdn, text=text).exists():
+            # Promokodni tekshirish
+            elif PromoEntry.objects.filter(text=text).exists():
                 custom_message = "Quyidagi Promokod avval ro’yxatdan o’tkazilgan!"
                 return self.send_sms(msisdn, opi, short_number, custom_message)
 
