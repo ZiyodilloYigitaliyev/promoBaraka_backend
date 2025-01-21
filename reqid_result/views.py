@@ -3,9 +3,12 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import SMSRequest
 from .serializers import SMSRequestSerializer
+from rest_framework.permissions import AllowAny
 import requests
 
 class SMSHandlerView(APIView):
+    permission_classes = [AllowAny]
+    
     def post(self, request):
         try:
             # Сериалайзердан фойдаланиб маълумотларни текшириш
