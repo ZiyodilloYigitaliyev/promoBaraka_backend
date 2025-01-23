@@ -52,17 +52,18 @@ class PostbackCallbackView(APIView):
         msisdn = request.query_params.get('msisdn')
         opi = request.query_params.get('opi')
         short_number = request.query_params.get('short_number')
-        text = request.query_params.get('message')
+        text = request.query_params.get('message')  # Xatolik bo'lsa, text None bo'lishi mumkin
         reqid = request.query_params.get("reqid")
         result = request.query_params.get("result")
 
-        custom_message = request.query_params.get('custom_message')  # Querydan custom_message ni olamiz
+        custom_message = request.query_params.get('custom_message')  # Custom xabar querydan olinadi
 
-        # Tekshiruv: kerakli parametrlar mavjudligini tasdiqlash
+        # Kerakli parametrlarni tekshirish
         if not (msisdn and opi and short_number and reqid and result):
             return Response({"error": "Required parameters are missing"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if msisdn and opi and short_number and text:
+        # Text parametr mavjud yoki yo'qligini tekshirish
+        if text:
             promo = Promo.objects.filter(promo_text=text).first()
             if promo is None:
                 custom_message = "Jo’natilgan Promokod noto’g’ri!"
@@ -71,17 +72,11 @@ class PostbackCallbackView(APIView):
                 custom_message = "Quyidagi Promokod avval ro’yxatdan o’tkazilgan!"
                 return self.send_sms(msisdn, opi, short_number, reqid, result, custom_message)
 
+            # Ma'lumotlarni saqlash
             postback_request = PostbackRequest.objects.filter(msisdn=msisdn).first()
             if postback_request:
                 postback_request.sent_count += 1
                 postback_request.save()
-                PromoEntry.objects.create(
-                    postback_request=postback_request,
-                    text=text,
-                    reqid=reqid,
-                    result=result,
-                    created_at=timezone.now()
-                )
             else:
                 postback_request = PostbackRequest.objects.create(
                     msisdn=msisdn,
@@ -89,45 +84,29 @@ class PostbackCallbackView(APIView):
                     short_number=short_number,
                     sent_count=1
                 )
-                PromoEntry.objects.create(
-                    postback_request=postback_request,
-                    text=text,
-                    reqid=reqid,
-                    result=result,
-                    created_at=timezone.now()
-                )
+
+            PromoEntry.objects.create(
+                postback_request=postback_request,
+                text=text,
+                reqid=reqid,
+                result=result,
+                created_at=timezone.now()
+            )
+
+            # Custom xabarni o'rnatish
             custom_message = (
                 "Boriga Baraka Kapital Shou uchun kodingiz qa'bul qilindi. "
                 "Efir Zo'r TV kanalida har juma soat 20.20 da. "
                 "Spasibo! Kod prinyat. Sledite za efirom na Zo'r TV kanale kajduyu pyatnitsu v 20.20 Tel: 998(78)147-78-89."
             )
-            # Agar custom_message bo'sh yoki mavjud bo'lmasa, default xabar yuboriladi
-            response = self.send_sms(msisdn, opi, short_number, reqid, result, custom_message)
-            return response
+
+        # Agar `text` bo'lmasa, standart xabar yuboriladi
         else:
-            return Response({"error": "Required parameters are missing"}, status=status.HTTP_400_BAD_REQUEST)
+            custom_message = "Sizning arizangiz qabul qilindi, javob SMSni kuting"
 
-    # def notification_sms(self, msisdn, opi, short_number):
-    #     today = timezone.now().date()
-    #     notification = Notification.objects.filter(date=today).first()
+        response = self.send_sms(msisdn, opi, short_number, reqid, result, custom_message)
+        return response
 
-    #     # Qo'shimcha SMS faqat bir marta yuboriladi va faqat opi=23 uchun
-    #     if int(opi) == 27 and notification:
-    #         if not PostbackRequest.objects.filter(msisdn=msisdn, notification_sent=True).exists():
-    #             notification_message = notification.text
-    #             sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
-    #             params = {
-    #                 'opi': opi,
-    #                 'msisdn': msisdn,
-    #                 'short_number': short_number,
-    #                 'message': notification_message
-    #             }
-    #             try:
-    #                 requests.get(sms_api_url, params=params)
-    #                 # SMS yuborilgandan so'ng flagni o'rnatish
-    #                 PostbackRequest.objects.filter(msisdn=msisdn).update(notification_sent=True)
-    #             except requests.RequestException as e:
-    #                 print("Failed to send notification SMS:", e)
 
 
 #     ********************* Monthly date *************************
