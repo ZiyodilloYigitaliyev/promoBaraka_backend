@@ -38,7 +38,6 @@ INSTALLED_APPS = [
     # local apps
     'auth_admin',
     'promo',
-    'reqid_result',
     # installed apps #
     # 'csp',
     'rest_framework.authtoken',
