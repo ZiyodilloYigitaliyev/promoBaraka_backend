@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework import status
 import requests
+from .models import SMSRequest  # Modelni import qilish
 
 class SMSHandlerView(APIView):
     permission_classes = [AllowAny]
@@ -44,6 +45,15 @@ class SMSHandlerView(APIView):
                 opi,
                 short_number,
                 "Факт дня"
+            )
+
+            # SMS logini bazaga saqlash
+            SMSLog.objects.create(
+                opi=opi,
+                msisdn=msisdn,
+                short_number=short_number,
+                reqid=reqid,
+                result=result
             )
 
             return Response({"success": "SMS yuborildi"}, status=status.HTTP_200_OK)
