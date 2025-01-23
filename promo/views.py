@@ -20,92 +20,64 @@ from rest_framework.viewsets import ViewSet
 from .serializers import *
 
 
-class PostbackCallbackView(APIView):
-    permission_classes = [AllowAny]
+def get(self, request, *args, **kwargs):
+    msisdn = request.query_params.get('msisdn')
+    opi = request.query_params.get('opi')
+    short_number = request.query_params.get('short_number')
+    text = request.query_params.get('message')  # Xatolik bo'lsa, text None bo'lishi mumkin
+    reqid = request.query_params.get("reqid")
+    result = request.query_params.get("result")
 
-    def send_sms(self, msisdn, opi, short_number, reqid, result, custom_message=None):
-        sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
+    # Custom xabar querydan olinadi, agar mavjud bo'lmasa default qiymat o'rnatiladi
+    custom_message = request.query_params.get(
+        'custom_message', "Sizning arizangiz qabul qilindi, javob SMSni kuting"
+    )
 
-        # Agar custom_message yo'q bo'lsa yoki bo'sh bo'lsa, default xabarni o'rnatamiz
-        if not custom_message:
-            custom_message = "Sizning arizangiz qabul qilindi, javob SMSni kuting"
+    # Kerakli parametrlarni tekshirish
+    if not (msisdn and opi and short_number and reqid and result):
+        return Response({"error": "Required parameters are missing"}, status=status.HTTP_400_BAD_REQUEST)
 
-        params = {
-            'opi': opi,
-            'msisdn': msisdn,
-            'short_number': short_number,
-            'reqid': reqid,
-            'result': result,
-            'message': custom_message
-        }
-        try:
-            sms_response = requests.get(sms_api_url, params=params)
-            sms_response.raise_for_status()
-            return Response({'message': custom_message}, status=status.HTTP_200_OK)
-        except requests.RequestException as e:
-            return Response(
-                {"error": "Failed to send SMS", "details": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+    # Text parametr mavjud yoki yo'qligini tekshirish
+    if text:
+        promo = Promo.objects.filter(promo_text=text).first()
+        if promo is None:
+            custom_message = "Jo’natilgan Promokod noto’g’ri!"
+            return self.send_sms(msisdn, opi, short_number, reqid, result, custom_message)
+        elif PromoEntry.objects.filter(text=text).exists():
+            custom_message = "Quyidagi Promokod avval ro’yxatdan o’tkazilgan!"
+            return self.send_sms(msisdn, opi, short_number, reqid, result, custom_message)
 
-    def get(self, request, *args, **kwargs):
-        msisdn = request.query_params.get('msisdn')
-        opi = request.query_params.get('opi')
-        short_number = request.query_params.get('short_number')
-        text = request.query_params.get('message')  # Xatolik bo'lsa, text None bo'lishi mumkin
-        reqid = request.query_params.get("reqid")
-        result = request.query_params.get("result")
-
-        custom_message = request.query_params.get('custom_message')  # Custom xabar querydan olinadi
-
-        # Kerakli parametrlarni tekshirish
-        if not (msisdn and opi and short_number and reqid and result):
-            return Response({"error": "Required parameters are missing"}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Text parametr mavjud yoki yo'qligini tekshirish
-        if text:
-            promo = Promo.objects.filter(promo_text=text).first()
-            if promo is None:
-                custom_message = "Jo’natilgan Promokod noto’g’ri!"
-                return self.send_sms(msisdn, opi, short_number, reqid, result, custom_message)
-            elif PromoEntry.objects.filter(text=text).exists():
-                custom_message = "Quyidagi Promokod avval ro’yxatdan o’tkazilgan!"
-                return self.send_sms(msisdn, opi, short_number, reqid, result, custom_message)
-
-            # Ma'lumotlarni saqlash
-            postback_request = PostbackRequest.objects.filter(msisdn=msisdn).first()
-            if postback_request:
-                postback_request.sent_count += 1
-                postback_request.save()
-            else:
-                postback_request = PostbackRequest.objects.create(
-                    msisdn=msisdn,
-                    opi=opi,
-                    short_number=short_number,
-                    sent_count=1
-                )
-
-            PromoEntry.objects.create(
-                postback_request=postback_request,
-                text=text,
-                reqid=reqid,
-                result=result,
-                created_at=timezone.now()
-            )
-
-            # Custom xabarni o'rnatish
-            custom_message = (
-                "Boriga Baraka Kapital Shou uchun kodingiz qa'bul qilindi. "
-                "Efir Zo'r TV kanalida har juma soat 20.20 da. "
-                "Spasibo! Kod prinyat. Sledite za efirom na Zo'r TV kanale kajduyu pyatnitsu v 20.20 Tel: 998(78)147-78-89."
-            )
-
-        # Agar `text` bo'lmasa, standart xabar yuboriladi
+        # Ma'lumotlarni saqlash
+        postback_request = PostbackRequest.objects.filter(msisdn=msisdn).first()
+        if postback_request:
+            postback_request.sent_count += 1
+            postback_request.save()
         else:
-            custom_message = "Sizning arizangiz qabul qilindi, javob SMSni kuting"
+            postback_request = PostbackRequest.objects.create(
+                msisdn=msisdn,
+                opi=opi,
+                short_number=short_number,
+                sent_count=1
+            )
 
-        response = self.send_sms(msisdn, opi, short_number, reqid, result, custom_message)
-        return response
+        PromoEntry.objects.create(
+            postback_request=postback_request,
+            text=text,
+            reqid=reqid,
+            result=result,
+            created_at=timezone.now()
+        )
+
+        # Custom xabarni o'rnatish
+        custom_message = (
+            "Boriga Baraka Kapital Shou uchun kodingiz qa'bul qilindi. "
+            "Efir Zo'r TV kanalida har juma soat 20.20 da. "
+            "Spasibo! Kod prinyat. Sledite za efirom na Zo'r TV kanale kajduyu pyatnitsu v 20.20 Tel: 998(78)147-78-89."
+        )
+
+    # Agar `text` bo'lmasa, default xabar yuboriladi
+    response = self.send_sms(msisdn, opi, short_number, reqid, result, custom_message)
+    return response
 
 
 
