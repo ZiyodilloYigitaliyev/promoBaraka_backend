@@ -1,25 +1,25 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
-from .models import SMSRequest
-from .serializers import SMSRequestSerializer
 from rest_framework.permissions import AllowAny
+from rest_framework import status
 import requests
 
 class SMSHandlerView(APIView):
     permission_classes = [AllowAny]
-    
-    def get(self, request):
+
+    def post(self, request):
         try:
-            # Query parametrlarni olish
-            msisdn = request.query_params.get("msisdn")
-            opi = request.query_params.get("opi")
-            short_number = request.query_params.get("short_number")
+            # Parametrlarni olish
+            opi = request.data.get("opi")
+            msisdn = request.data.get("msisdn")
+            short_number = request.data.get("short_number")
+            reqid = request.data.get("reqid")
+            result = request.data.get("result")
 
             # Parametrlarni tekshirish
-            if not all([msisdn, opi, short_number]):
+            if not all([opi, msisdn, short_number, reqid, result]):
                 return Response(
-                    {"error": "Missing required query parameters (msisdn, opi, short_number)"},
+                    {"error": "Missing required parameters (opi, msisdn, short_number, reqid, result)"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
