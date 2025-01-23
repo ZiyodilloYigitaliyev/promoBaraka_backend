@@ -1,3 +1,4 @@
 from django.contrib import admin
+from reqid_result.models import SMSRequest
 
-# Register your models here.
+admin.site.register(SMSRequest)
