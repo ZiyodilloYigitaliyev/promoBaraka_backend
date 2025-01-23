@@ -47,6 +47,7 @@ class PostbackCallbackView(APIView):
                 {"error": "Failed to send SMS", "details": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
     def get(self, request, *args, **kwargs):
         msisdn = request.query_params.get('msisdn')
         opi = request.query_params.get('opi')
@@ -56,6 +57,10 @@ class PostbackCallbackView(APIView):
         result = request.query_params.get("result")
 
         custom_message = request.query_params.get('custom_message')  # Querydan custom_message ni olamiz
+
+        # Tekshiruv: kerakli parametrlar mavjudligini tasdiqlash
+        if not (msisdn and opi and short_number and reqid and result):
+            return Response({"error": "Required parameters are missing"}, status=status.HTTP_400_BAD_REQUEST)
 
         if msisdn and opi and short_number and text:
             promo = Promo.objects.filter(promo_text=text).first()
@@ -91,13 +96,17 @@ class PostbackCallbackView(APIView):
                     result=result,
                     created_at=timezone.now()
                 )
-
+            custom_message = (
+                "Boriga Baraka Kapital Shou uchun kodingiz qa'bul qilindi. "
+                "Efir Zo'r TV kanalida har juma soat 20.20 da. "
+                "Spasibo! Kod prinyat. Sledite za efirom na Zo'r TV kanale kajduyu pyatnitsu v 20.20 Tel: 998(78)147-78-89."
+            )
             # Agar custom_message bo'sh yoki mavjud bo'lmasa, default xabar yuboriladi
             response = self.send_sms(msisdn, opi, short_number, reqid, result, custom_message)
-
             return response
         else:
             return Response({"error": "Required parameters are missing"}, status=status.HTTP_400_BAD_REQUEST)
+
     # def notification_sms(self, msisdn, opi, short_number):
     #     today = timezone.now().date()
     #     notification = Notification.objects.filter(date=today).first()
