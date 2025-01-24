@@ -22,6 +22,7 @@ from .serializers import *
 
 class PostbackCallbackView(APIView):
     permission_classes = [AllowAny]
+
     def send_sms(self, msisdn, opi, short_number, custom_message):
         sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
         params = {
@@ -37,65 +38,125 @@ class PostbackCallbackView(APIView):
         except requests.RequestException as e:
             return Response({"error": "Failed to send SMS", "details": str(e)},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     def get(self, request, *args, **kwargs):
         msisdn = request.query_params.get('msisdn')
         opi = request.query_params.get('opi')
         short_number = request.query_params.get('short_number')
         text = request.query_params.get('message')
 
-        custom_message = ""
 
-        if msisdn and opi and short_number and text:
-            promo = Promo.objects.filter(promo_text=text).first()
-            if promo is None:
-                custom_message = "Jo’natilgan Promokod noto’g’ri!"
-                return self.send_sms(msisdn, opi, short_number, custom_message)
+        if short_number == "7500":
+            custom_message = ""
+            if msisdn and opi and short_number and text:
+                promo = Promo.objects.filter(promo_text=text).first()
+                if promo is None:
+                    custom_message = "Jo’natilgan Promokod noto’g’ri!"
+                    return self.send_sms(msisdn, opi, short_number, custom_message)
 
-            # Filterlashda postback_request orqali msisdn ga murojaat qiling
-            if PromoEntry.objects.filter(postback_request__msisdn=msisdn, text=text).exists():
-                custom_message = "Quyidagi Promokod avval ro’yxatdan o’tkazilgan!"
-                return self.send_sms(msisdn, opi, short_number, custom_message)
+                # Filterlashda postback_request orqali msisdn ga murojaat qiling
+                if PromoEntry.objects.filter(postback_request__msisdn=msisdn, text=text).exists():
+                    custom_message = "Quyidagi Promokod avval ro’yxatdan o’tkazilgan!"
+                    return self.send_sms(msisdn, opi, short_number, custom_message)
 
-            postback_request = PostbackRequest.objects.filter(msisdn=msisdn).first()
-            if postback_request:
-                postback_request.sent_count += 1
-                postback_request.save()
-                PromoEntry.objects.create(
-                    postback_request=postback_request,
-                    text=text,
-                    created_at=timezone.now()
+                postback_request = PostbackRequest.objects.filter(msisdn=msisdn).first()
+                if postback_request:
+                    postback_request.sent_count += 1
+                    postback_request.save()
+                    PromoEntry.objects.create(
+                        postback_request=postback_request,
+                        text=text,
+                        created_at=timezone.now()
+                    )
+                else:
+                    postback_request = PostbackRequest.objects.create(
+                        msisdn=msisdn,
+                        opi=opi,
+                        short_number=short_number,
+                        sent_count=1
+                    )
+                    PromoEntry.objects.create(
+                        postback_request=postback_request,
+                        text=text,
+                        created_at=timezone.now()
+                    )
+
+                custom_message = (
+                    "Tabriklaymiz! Promokod qabul qilindi!\n"
+                    "\"Boriga baraka\" ko'rsatuvini har Juma soat 21:00 da Jonli efirda tomosha qiling!"
                 )
+
+                response = self.send_sms(msisdn, opi, short_number, custom_message)
+
+                # # Qo'shimcha notification xabari yuborish uchun
+                # if response.status_code == 200:
+                #     self.notification_sms(msisdn, opi, short_number)
+
+                return response
             else:
-                postback_request = PostbackRequest.objects.create(
+                return Response({"error": "Failed to send SMS"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        elif short_number == "07500":
+            # Query parametrlarini qaytadan oling
+            reqid = request.query_params.get('reqid')
+            result = request.query_params.get('result')
+
+            # Parametrlarni tekshirish
+            if msisdn and opi and reqid and result:
+                # Bazaga saqlash
+                query_log = QueryLog.objects.create(
                     msisdn=msisdn,
                     opi=opi,
                     short_number=short_number,
-                    sent_count=1
+                    reqid=reqid,
+                    result=result
                 )
-                PromoEntry.objects.create(
-                    postback_request=postback_request,
-                    text=text,
-                    created_at=timezone.now()
+                # SMS xabarlarini yaratish
+                message_1 = "Sizning arizangiz qabul qilindi, javob SMSni kuting."
+                message_2 = (
+                    "Boriga Baraka Kapital Shou uchun kodingiz qabul qilindi. "
+                    "Efir Zo'r TV kanalida har juma soat 20.20 da. "
+                    "Spasibo! Kod prinyat. Sledite za efirom na Zo'r TV kanale kajduyu pyatnitsu v 20.20. "
+                    "Tel: 998(78)147-78-89."
                 )
 
-            custom_message = (
-                "Tabriklaymiz! Promokod qabul qilindi!\n"
-                "\"Boriga baraka\" ko'rsatuvini har Juma soat 21:00 da Jonli efirda tomosha qiling!"
-            )
+                # SMSni ketma-ket yuborish
+                response_1 = self.send_sms(msisdn, opi, short_number, message_1)
+                response_2 = self.send_sms(msisdn, opi, short_number, message_2)
 
-            response = self.send_sms(msisdn, opi, short_number, custom_message)
-
-            # # Qo'shimcha notification xabari yuborish uchun
-            # if response.status_code == 200:
-            #     self.notification_sms(msisdn, opi, short_number)
-
-            return response
+                if response_1.status_code == 200 and response_2.status_code == 200:
+                    return Response({"message": "Ikkala SMS muvaffaqiyatli yuborildi!"})
+                else:
+                    return Response({
+                        "error": "SMS yuborishda xatolik yuz berdi!",
+                        "details": {
+                            "response_1": response_1.text,
+                            "response_2": response_2.text
+                        }
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            else:
+                return Response({"error": "07500 uchun kerakli parametrlar yetarli emas!"},
+                                status=status.HTTP_400_BAD_REQUEST)
         else:
-            return Response({"error": "Failed to send SMS"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Noto‘g‘ri short_number!"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # def send_sms(self, msisdn, opi, short_number, custom_message):
+    #     sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
+    #     params = {
+    #         'opi': opi,
+    #         'msisdn': msisdn,
+    #         'short_number': short_number,
+    #         'message': custom_message
+    #     }
+    #     try:
+    #         sms_response = requests.get(sms_api_url, params=params)
+    #         sms_response.raise_for_status()
+    #         return Response({'message': custom_message}, status=status.HTTP_200_OK)
+    #     except requests.RequestException as e:
+    #         return Response({"error": "Failed to send SMS", "details": str(e)},
+    #                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-
-    # def notification_sms(self, msisdn, opi, short_number):
+# def notification_sms(self, msisdn, opi, short_number):
     #     today = timezone.now().date()
     #     notification = Notification.objects.filter(date=today).first()
 

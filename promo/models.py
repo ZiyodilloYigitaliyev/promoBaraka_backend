@@ -15,13 +15,21 @@ class PostbackRequest(models.Model):
 class PromoEntry(models.Model):
     postback_request = models.ForeignKey(PostbackRequest, on_delete=models.CASCADE)
     text = models.TextField(unique=True)  # Abonentdan kelgan xabar
-    reqid = models.IntegerField()
-    result = models.IntegerField()
     created_at = models.DateTimeField()  # Ma'lumotlar qo'shilgan vaqt
     used = models.BooleanField(default=False)
 
     def __str__(self):
         return self.text
+class QueryLog(models.Model):
+    msisdn = models.CharField(max_length=20, null=True, blank=True)
+    opi = models.CharField(max_length=50, null=True, blank=True)
+    short_number = models.CharField(max_length=10, null=True, blank=True)
+    reqid = models.CharField(max_length=50, null=True, blank=True)
+    result = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.short_number} - {self.reqid}"
 
 class Promo(models.Model):
     promo_text = models.CharField(max_length=25, unique=True)
