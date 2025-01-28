@@ -34,10 +34,9 @@ class PostbackCallbackView(APIView):
         try:
             sms_response = requests.get(sms_api_url, params=params)
             sms_response.raise_for_status()
-            return Response({'message': custom_message}, status=status.HTTP_200_OK)
+            return sms_response
         except requests.RequestException as e:
-            return Response({"error": "Failed to send SMS", "details": str(e)},
-                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return None
 
     def get(self, request, *args, **kwargs):
         msisdn = request.query_params.get('msisdn')
@@ -45,124 +44,97 @@ class PostbackCallbackView(APIView):
         short_number = request.query_params.get('short_number')
         text = request.query_params.get('message')
 
-
         if short_number == "7500":
-            custom_message = ""
-            if msisdn and opi and short_number and text:
+            if msisdn and opi and text:
                 promo = Promo.objects.filter(promo_text=text).first()
-                if promo is None:
+                if not promo:
                     custom_message = "Jo’natilgan Promokod noto’g’ri!"
-                    return self.send_sms(msisdn, opi, short_number, custom_message)
+                    response = self.send_sms(msisdn, opi, short_number, custom_message)
+                    return Response({"message": custom_message}, status=status.HTTP_200_OK)
 
-                # Filterlashda postback_request orqali msisdn ga murojaat qiling
                 if PromoEntry.objects.filter(postback_request__msisdn=msisdn, text=text).exists():
                     custom_message = "Quyidagi Promokod avval ro’yxatdan o’tkazilgan!"
-                    return self.send_sms(msisdn, opi, short_number, custom_message)
+                    response = self.send_sms(msisdn, opi, short_number, custom_message)
+                    return Response({"message": custom_message}, status=status.HTTP_200_OK)
 
-                postback_request = PostbackRequest.objects.filter(msisdn=msisdn).first()
-                if postback_request:
+                postback_request, created = PostbackRequest.objects.get_or_create(
+                    msisdn=msisdn,
+                    defaults={'opi': opi, 'short_number': short_number, 'sent_count': 1}
+                )
+                if not created:
                     postback_request.sent_count += 1
                     postback_request.save()
-                    PromoEntry.objects.create(
-                        postback_request=postback_request,
-                        text=text,
-                        created_at=timezone.now()
-                    )
-                else:
-                    postback_request = PostbackRequest.objects.create(
-                        msisdn=msisdn,
-                        opi=opi,
-                        short_number=short_number,
-                        sent_count=1
-                    )
-                    PromoEntry.objects.create(
-                        postback_request=postback_request,
-                        text=text,
-                        created_at=timezone.now()
-                    )
+
+                PromoEntry.objects.create(
+                    postback_request=postback_request,
+                    text=text,
+                    created_at=timezone.now()
+                )
 
                 custom_message = (
                     "Tabriklaymiz! Promokod qabul qilindi!\n"
                     "\"Boriga baraka\" ko'rsatuvini har Juma soat 21:00 da Jonli efirda tomosha qiling!"
                 )
-
                 response = self.send_sms(msisdn, opi, short_number, custom_message)
-
-                # # Qo'shimcha notification xabari yuborish uchun
-                # if response.status_code == 200:
-                #     self.notification_sms(msisdn, opi, short_number)
-
-                return response
+                if response:
+                    return Response({"message": custom_message}, status=status.HTTP_200_OK)
+                else:
+                    return Response({"error": "Failed to send SMS"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             else:
-                return Response({"error": "Failed to send SMS"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response({"error": "7500 uchun kerakli parametrlar yetarli emas!"}, status=status.HTTP_400_BAD_REQUEST)
+
         elif short_number == "07500":
-    # Query parametrlarini qaytadan oling
             reqid = request.query_params.get('reqid')
             result = request.query_params.get('result')
 
-    # Parametrlarni tekshirish
-        if msisdn and opi and reqid and result:
-            try:
-            # Bazaga saqlash
-                query_log = QueryLog.objects.create(
-                    msisdn=msisdn,
-                    opi=opi,
-                    short_number=short_number,
-                    reqid=reqid,
-                    result=result
-                )
+            if msisdn and opi and reqid and result:
+                try:
+                    QueryLog.objects.create(
+                        msisdn=msisdn,
+                        opi=opi,
+                        short_number=short_number,
+                        reqid=reqid,
+                        result=result
+                    )
 
-            # SMS xabarlarini yaratish
-                message_1 = "Sizning arizangiz qabul qilindi, javob SMSni kuting."
-                message_2 = (
-                    "Boriga Baraka Kapital Shou uchun kodingiz qabul qilindi. "
-                    "Efir Zo'r TV kanalida har juma soat 20.20 da. "
-                    "Spasibo! Kod prinyat. Sledite za efirom na Zo'r TV kanale kajduyu pyatnitsu v 20.20. "
-                    "Tel: 998(78)147-78-89."
-                )
+                    message_1 = "Sizning arizangiz qabul qilindi, javob SMSni kuting."
+                    message_2 = (
+                        "Boriga Baraka Kapital Shou uchun kodingiz qabul qilindi. "
+                        "Efir Zo'r TV kanalida har juma soat 20.20 da. "
+                        "Spasibo! Kod prinyat. Sledite za efirom na Zo'r TV kanale kajduyu pyatnitsu v 20.20. "
+                        "Tel: 998(78)147-78-89."
+                    )
 
-            # SMSni ketma-ket yuborish
-                response_1 = self.send_sms(msisdn, opi, short_number, message_1)
-                response_2 = self.send_sms(msisdn, opi, short_number, message_2)
+                    response_1 = self.send_sms(msisdn, opi, short_number, message_1)
+                    response_2 = self.send_sms(msisdn, opi, short_number, message_2)
 
-            # Javoblarni tekshirish
-                if response_1.status_code == 200 and response_2.status_code == 200:
-                    return Response({"message": "Ikkala SMS muvaffaqiyatli yuborildi!"})
-                else:
-                # Har bir SMS uchun alohida xatolikni ko'rsatish
-                    errors = []
-                    if response_1.status_code != 200:
-                        errors.append({"sms_1_error": response_1.text})
-                    if response_2.status_code != 200:
-                        errors.append({"sms_2_error": response_2.text})
-                    return Response({
-                        "error": "SMS yuborishda xatolik yuz berdi!",
-                        "details": errors
-                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            except Exception as e:
-                return Response({
-                    "error": "Bazaga saqlashda yoki SMS yuborishda xatolik yuz berdi!",
-                    "details": str(e)
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                    if response_1 and response_2:
+                        return Response({"message": "Ikkala SMS muvaffaqiyatli yuborildi!"}, status=status.HTTP_200_OK)
+                    else:
+                        errors = []
+                        if not response_1:
+                            errors.append("SMS 1 yuborilmadi!")
+                        if not response_2:
+                            errors.append("SMS 2 yuborilmadi!")
+                        return Response({"error": "SMS yuborishda xatolik yuz berdi!", "details": errors}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                except Exception as e:
+                    return Response({"error": "Bazaga saqlashda yoki SMS yuborishda xatolik yuz berdi!", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            else:
+                missing_params = []
+                if not msisdn:
+                    missing_params.append('msisdn')
+                if not opi:
+                    missing_params.append('opi')
+                if not reqid:
+                    missing_params.append('reqid')
+                if not result:
+                    missing_params.append('result')
+
+                return Response({"error": "07500 uchun kerakli parametrlar yetarli emas!", "missing_params": missing_params}, status=status.HTTP_400_BAD_REQUEST)
+
         else:
-        # Parametrlar yetarli emasligi haqida aniq xabar
-            missing_params = []
-            if not msisdn:
-                missing_params.append('msisdn')
-            if not opi:
-                missing_params.append('opi')
-            if not reqid:
-                missing_params.append('reqid')
-            if not result:
-                missing_params.append('result')
-
-            return Response({
-                "error": "07500 uchun kerakli parametrlar yetarli emas!",
-                "missing_params": missing_params
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Noto‘g‘ri short_number!"}, status=status.HTTP_400_BAD_REQUEST)
         
-        # else:
-        #     return Response({"error": "Noto‘g‘ri short_number!"}, status=status.HTTP_400_BAD_REQUEST)
 
 
     # def send_sms(self, msisdn, opi, short_number, custom_message):
