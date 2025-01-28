@@ -96,13 +96,14 @@ class PostbackCallbackView(APIView):
             else:
                 return Response({"error": "Failed to send SMS"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         elif short_number == "07500":
-            # Query parametrlarini qaytadan oling
+    # Query parametrlarini qaytadan oling
             reqid = request.query_params.get('reqid')
             result = request.query_params.get('result')
 
-            # Parametrlarni tekshirish
-            if msisdn and opi and reqid and result:
-                # Bazaga saqlash
+    # Parametrlarni tekshirish
+        if msisdn and opi and reqid and result:
+            try:
+            # Bazaga saqlash
                 query_log = QueryLog.objects.create(
                     msisdn=msisdn,
                     opi=opi,
@@ -110,7 +111,8 @@ class PostbackCallbackView(APIView):
                     reqid=reqid,
                     result=result
                 )
-                # SMS xabarlarini yaratish
+
+            # SMS xabarlarini yaratish
                 message_1 = "Sizning arizangiz qabul qilindi, javob SMSni kuting."
                 message_2 = (
                     "Boriga Baraka Kapital Shou uchun kodingiz qabul qilindi. "
@@ -119,25 +121,49 @@ class PostbackCallbackView(APIView):
                     "Tel: 998(78)147-78-89."
                 )
 
-                # SMSni ketma-ket yuborish
+            # SMSni ketma-ket yuborish
                 response_1 = self.send_sms(msisdn, opi, short_number, message_1)
                 response_2 = self.send_sms(msisdn, opi, short_number, message_2)
 
+            # Javoblarni tekshirish
                 if response_1.status_code == 200 and response_2.status_code == 200:
                     return Response({"message": "Ikkala SMS muvaffaqiyatli yuborildi!"})
                 else:
+                # Har bir SMS uchun alohida xatolikni ko'rsatish
+                    errors = []
+                    if response_1.status_code != 200:
+                        errors.append({"sms_1_error": response_1.text})
+                    if response_2.status_code != 200:
+                        errors.append({"sms_2_error": response_2.text})
                     return Response({
                         "error": "SMS yuborishda xatolik yuz berdi!",
-                        "details": {
-                            "response_1": response_1.text,
-                            "response_2": response_2.text
-                        }
+                        "details": errors
                     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            else:
-                return Response({"error": "07500 uchun kerakli parametrlar yetarli emas!"},
-                                status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                return Response({
+                    "error": "Bazaga saqlashda yoki SMS yuborishda xatolik yuz berdi!",
+                    "details": str(e)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:
-            return Response({"error": "Noto‘g‘ri short_number!"}, status=status.HTTP_400_BAD_REQUEST)
+        # Parametrlar yetarli emasligi haqida aniq xabar
+            missing_params = []
+            if not msisdn:
+                missing_params.append('msisdn')
+            if not opi:
+                missing_params.append('opi')
+            if not reqid:
+                missing_params.append('reqid')
+            if not result:
+                missing_params.append('result')
+
+            return Response({
+                "error": "07500 uchun kerakli parametrlar yetarli emas!",
+                "missing_params": missing_params
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # else:
+        #     return Response({"error": "Noto‘g‘ri short_number!"}, status=status.HTTP_400_BAD_REQUEST)
+
 
     # def send_sms(self, msisdn, opi, short_number, custom_message):
     #     sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
