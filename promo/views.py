@@ -108,15 +108,26 @@ class PostbackCallbackView(APIView):
                     response_1 = self.send_sms(msisdn, opi, short_number, message_1)
                     response_2 = self.send_sms(msisdn, opi, short_number, message_2)
 
-                    if response_1 and response_2:
-                        return Response({"message": "Ikkala SMS muvaffaqiyatli yuborildi!"}, status=status.HTTP_200_OK)
+                    # Bazadagi Notification modelidan ma'lumot olish va yuborish
+                    try:
+                        notification = Notification.objects.filter(active=True).latest('created_at')
+                        notification_message = notification.text
+                        notification_response = self.send_sms(msisdn, opi, short_number, notification_message)
+                    except Notification.DoesNotExist:
+                        return Response({"error": "Aktiv Notification topilmadi!"}, status=status.HTTP_404_NOT_FOUND)
+
+                    if response_1 and response_2 and notification_response:
+                        return Response({"message": "Barcha SMS muvaffaqiyatli yuborildi!"}, status=status.HTTP_200_OK)
                     else:
                         errors = []
                         if not response_1:
                             errors.append("SMS 1 yuborilmadi!")
                         if not response_2:
                             errors.append("SMS 2 yuborilmadi!")
+                        if not notification_response:
+                            errors.append("Notification SMS yuborilmadi!")
                         return Response({"error": "SMS yuborishda xatolik yuz berdi!", "details": errors}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
                 except Exception as e:
                     return Response({"error": "Bazaga saqlashda yoki SMS yuborishda xatolik yuz berdi!", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             else:
@@ -132,49 +143,29 @@ class PostbackCallbackView(APIView):
 
                 return Response({"error": "07500 uchun kerakli parametrlar yetarli emas!", "missing_params": missing_params}, status=status.HTTP_400_BAD_REQUEST)
 
-        else:
-            return Response({"error": "Noto‘g‘ri short_number!"}, status=status.HTTP_400_BAD_REQUEST)
         
 
+def notification_sms(self, msisdn, opi, short_number):
+        today = timezone.now().date()
+        notification = Notification.objects.filter(date=today).first()
 
-    # def send_sms(self, msisdn, opi, short_number, custom_message):
-    #     sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
-    #     params = {
-    #         'opi': opi,
-    #         'msisdn': msisdn,
-    #         'short_number': short_number,
-    #         'message': custom_message
-    #     }
-    #     try:
-    #         sms_response = requests.get(sms_api_url, params=params)
-    #         sms_response.raise_for_status()
-    #         return Response({'message': custom_message}, status=status.HTTP_200_OK)
-    #     except requests.RequestException as e:
-    #         return Response({"error": "Failed to send SMS", "details": str(e)},
-    #                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-# def notification_sms(self, msisdn, opi, short_number):
-    #     today = timezone.now().date()
-    #     notification = Notification.objects.filter(date=today).first()
-
-    #     # Qo'shimcha SMS faqat bir marta yuboriladi va faqat opi=23 uchun
-    #     if int(opi) == 27 and notification:
-    #         if not PostbackRequest.objects.filter(msisdn=msisdn, notification_sent=True).exists():
-    #             notification_message = notification.text
-    #             sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
-    #             params = {
-    #                 'opi': opi,
-    #                 'msisdn': msisdn,
-    #                 'short_number': short_number,
-    #                 'message': notification_message
-    #             }
-    #             try:
-    #                 requests.get(sms_api_url, params=params)
-    #                 # SMS yuborilgandan so'ng flagni o'rnatish
-    #                 PostbackRequest.objects.filter(msisdn=msisdn).update(notification_sent=True)
-    #             except requests.RequestException as e:
-    #                 print("Failed to send notification SMS:", e)
+        # Qo'shimcha SMS faqat bir marta yuboriladi va faqat opi=23 uchun
+        if int(opi) == 18 and notification:
+            if not PostbackRequest.objects.filter(msisdn=msisdn, notification_sent=True).exists():
+                notification_message = notification.text
+                sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
+                params = {
+                    'opi': opi,
+                    'msisdn': msisdn,
+                    'short_number': short_number,
+                    'message': notification_message
+                }
+                try:
+                    requests.get(sms_api_url, params=params)
+                    # SMS yuborilgandan so'ng flagni o'rnatish
+                    PostbackRequest.objects.filter(msisdn=msisdn).update(notification_sent=True)
+                except requests.RequestException as e:
+                    print("Failed to send notification SMS:", e)
 
 
 #     ********************* Monthly date *************************
