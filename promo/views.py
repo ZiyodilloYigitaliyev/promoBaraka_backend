@@ -151,7 +151,7 @@ def notification_sms(self, msisdn, opi, short_number):
 
         # Qo'shimcha SMS faqat bir marta yuboriladi va faqat opi=23 uchun
         if int(opi) == 18 and notification:
-            if not PostbackRequest.objects.filter(msisdn=msisdn, notification_sent=True).exists():
+            if not QueryLog.objects.filter(msisdn=msisdn, notification_sent=True).exists():
                 notification_message = notification.text
                 sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
                 params = {
