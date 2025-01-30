@@ -42,7 +42,7 @@ class Notification(models.Model):
     date = models.DateField()
     opi = models.IntegerField()  # Operator ID (22, 23 yoki 27)
     text = models.TextField()  # Xabar matni
-
+    active = models.BooleanField(default=False)
     def __str__(self):
         return f"Notification for {self.date}"
 
