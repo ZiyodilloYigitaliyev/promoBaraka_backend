@@ -60,3 +60,4 @@ class PromoAdmin(admin.ModelAdmin):
     delete_duplicates.short_description = 'Takrorlangan Promo kodlarni o‘chirish'
 
 admin.site.register(Notification)
+admin.site.register(QueryLog)

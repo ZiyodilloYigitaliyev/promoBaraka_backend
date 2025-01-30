@@ -7,7 +7,6 @@ class PostbackRequest(models.Model):
     opi = models.IntegerField()  # Operator ID (22, 23 yoki 27)
     short_number = models.CharField(max_length=10)  # Qisqa raqam (masalan, 7500)
     sent_count = models.IntegerField(default=0)
-    notification_sent = models.BooleanField(default=False)
     def __str__(self):
         return f"{self.msisdn} - {self.short_number}"
 
@@ -26,6 +25,7 @@ class QueryLog(models.Model):
     short_number = models.CharField(max_length=10, null=True, blank=True)
     reqid = models.CharField(max_length=50, null=True, blank=True)
     result = models.TextField(null=True, blank=True)
+    notification_sent = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -48,8 +48,3 @@ class Notification(models.Model):
 
 
 
-
-
-
-# class PromoCode(models.Model):
-#     code = models.CharField(max_length=50)
