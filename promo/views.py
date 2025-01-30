@@ -110,7 +110,7 @@ class PostbackCallbackView(APIView):
 
                     # Bazadagi Notification modelidan ma'lumot olish va yuborish
                     try:
-                        notification = Notification.objects.latest('created_at')
+                        notification = Notification.objects.latest('date')
                         notification_message = notification.text
                         notification_response = self.send_sms(msisdn, opi, short_number, notification_message)
                     except Notification.DoesNotExist:
