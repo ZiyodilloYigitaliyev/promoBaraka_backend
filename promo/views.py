@@ -18,6 +18,67 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 from datetime import timedelta, datetime
 from rest_framework.viewsets import ViewSet
 from .serializers import *
+import pandas as pd
+from django.core.management.base import BaseCommand
+from django.core.files.base import ContentFile
+
+class UploadAndNotifyService:
+    file_path = "uploads/events.xlsx"  # XLSX faylni saqlash yo‘li
+
+    @staticmethod
+    def upload_xlsx_once(file):
+        """XLSX faylni faqat bir marta yuklab, serverga saqlaydi."""
+        if default_storage.exists(UploadAndNotifyService.file_path):
+            return {"message": "Fayl allaqachon yuklangan!"}
+        
+        default_storage.save(UploadAndNotifyService.file_path, ContentFile(file.read()))
+        return {"message": "Fayl yuklandi!"}
+
+    @staticmethod
+    def check_and_notify_users():
+        """Heroku Scheduler chaqirganida sanani tekshirib, foydalanuvchilarga ma'lumot yuborish."""
+        today = timezone.now().date().strftime("%d-%B")  # Sana: 21-November formatida
+
+        if not default_storage.exists(UploadAndNotifyService.file_path):
+            print("❌ XLSX fayl mavjud emas!")
+            return
+
+        try:
+            df = pd.read_excel(default_storage.open(UploadAndNotifyService.file_path))  # Faylni o‘qish
+            df["Date"] = pd.to_datetime(df["Date"]).dt.strftime("%d-%B")  # Sanani formatlash
+
+            today_events = df[df["Date"] == today]  # Bugungi sanaga mos ma'lumotlarni olish
+
+            if today_events.empty:
+                print(f"📅 {today} uchun yangilanish topilmadi.")
+                return
+
+            # Xabarni shakllantirish
+            event_texts = "\n".join([f"{row['Title']}: {row['Description']}" for _, row in today_events.iterrows()])
+
+            # Ma'lumotlarni bazada saqlash (foydalanuvchilar qayta xabar olmasligi uchun)
+            if not PostbackRequest.objects.filter(date=today).exists():
+                PostbackRequest.objects.create(date=today, message=event_texts)
+
+            users = PostbackRequest.objects.all()  # Barcha foydalanuvchilarni olish
+            sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
+
+            for user in users:
+                params = {
+                    "opi": 18,
+                    "msisdn": user.phone_number,
+                    "short_number": "7500",
+                    "message": f"📅 {today} uchun yangilanishlar:\n{event_texts}"
+                }
+                try:
+                    requests.get(sms_api_url, params=params)
+                    print(f"📤 SMS yuborildi: {user.phone_number}")
+                except requests.RequestException as e:
+                    print(f"❌ SMS yuborishda xatolik: {e}")
+
+        except Exception as e:
+            print(f"❌ Xato: {str(e)}")
+
 
 
 class PostbackCallbackView(APIView):
@@ -271,6 +332,7 @@ class PromoMonthlyView(APIView):
                 }
 
         return Response(result, status=status.HTTP_200_OK)
+    
 class PromoEntryList(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, *args, **kwargs):

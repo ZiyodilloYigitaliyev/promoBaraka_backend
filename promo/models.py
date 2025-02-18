@@ -19,6 +19,7 @@ class PromoEntry(models.Model):
 
     def __str__(self):
         return self.text
+    
 class QueryLog(models.Model):
     msisdn = models.CharField(max_length=20, null=True, blank=True)
     opi = models.CharField(max_length=50, null=True, blank=True)
