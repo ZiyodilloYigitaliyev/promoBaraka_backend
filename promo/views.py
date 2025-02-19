@@ -23,7 +23,7 @@ from django.core.management.base import BaseCommand
 from django.core.files.base import ContentFile
 
 class UploadAndNotifyService:
-    file_path = "uploads/events.xlsx"  # XLSX faylni saqlash yo‘li
+    file_path = "uploads/event.xlsx"
 
     @staticmethod
     def upload_xlsx_once(file):
@@ -36,7 +36,7 @@ class UploadAndNotifyService:
 
     @staticmethod
     def check_and_notify_users():
-        """Heroku Scheduler chaqirganida sanani tekshirib, foydalanuvchilarga ma'lumot yuborish."""
+        """Heroku Scheduler chaqirganida sanani tekshirib, faqat 07500 qisqa raqamiga "1" yuborgan foydalanuvchilarga ma'lumot yuborish."""
         today = timezone.now().date().strftime("%d-%B")  # Sana: 21-November formatida
 
         if not default_storage.exists(UploadAndNotifyService.file_path):
@@ -56,28 +56,26 @@ class UploadAndNotifyService:
             # Xabarni shakllantirish
             event_texts = "\n".join([f"{row['Title']}: {row['Description']}" for _, row in today_events.iterrows()])
 
-            # Ma'lumotlarni bazada saqlash (foydalanuvchilar qayta xabar olmasligi uchun)
-            if not PostbackRequest.objects.filter(date=today).exists():
-                PostbackRequest.objects.create(date=today, message=event_texts)
-
-            users = PostbackRequest.objects.all()  # Barcha foydalanuvchilarni olish
+            # "1" ni 07500 qisqa raqamiga yuborgan foydalanuvchilarni olish
+            eligible_users = PostbackRequest.objects.filter(short_number="07500", message="1")
             sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
 
-            for user in users:
+            for user in eligible_users:
                 params = {
                     "opi": 18,
-                    "msisdn": user.phone_number,
+                    "msisdn": user.msisdn,
                     "short_number": "7500",
                     "message": f"📅 {today} uchun yangilanishlar:\n{event_texts}"
                 }
                 try:
                     requests.get(sms_api_url, params=params)
-                    print(f"📤 SMS yuborildi: {user.phone_number}")
+                    print(f"📤 SMS yuborildi: {user.msisdn}")
                 except requests.RequestException as e:
                     print(f"❌ SMS yuborishda xatolik: {e}")
 
         except Exception as e:
             print(f"❌ Xato: {str(e)}")
+
 
 
 
