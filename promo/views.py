@@ -3,6 +3,8 @@ import random
 import chardet
 from rest_framework.parsers import FileUploadParser
 import json
+from django.utils import timezone
+import pytz
 from django.db import transaction
 from rest_framework import viewsets, status
 from django.core.files.storage import default_storage
@@ -131,16 +133,32 @@ class PostbackCallbackView(APIView):
 
                     
                     try:
-                        notification = NotificationDaily.objects.latest('date')
-                        # Bo'sh bo'lmagan matnlarni filtrlaymiz
+                        # Server vaqti (odatda UTC) ni olish
+                        server_now = timezone.now()
+
+                        # Tashkent vaqti uchun timezone aniqlash
+                        tashkent_tz = pytz.timezone("Asia/Tashkent")
+                        tashkent_now = server_now.astimezone(tashkent_tz)
+                        today = tashkent_now.date()  # Bugungi sana, Tashkent vaqtiga mos
+
+                        # Bugungi sana uchun NotificationDaily yozuvini olish
+                        notification = NotificationDaily.objects.filter(date=today).first()
+                        if not notification:
+                            return Response({"error": "Bugungi Notification topilmadi!"}, status=404)
+
+                        # text1, text2, text3 maydonlaridan bo'sh bo'lmaganlarini tanlab olish
                         possible_texts = [text for text in [notification.text1, notification.text2, notification.text3] if text]
                         if not possible_texts:
-                            return Response({"error": "Notification matni topilmadi!"}, status=status.HTTP_404_NOT_FOUND)
-                        notification_message = random.choice(possible_texts)
-                        notification_response = self.send_sms(msisdn, opi, short_number, notification_message)
-                    except NotificationDaily.DoesNotExist:
-                        return Response({"error": "Aktiv Notification topilmadi!"}, status=status.HTTP_404_NOT_FOUND)
+                            return Response({"error": "Notification matni topilmadi!"}, status=404)
 
+                        # Tasodifiy matn tanlash
+                        notification_message = random.choice(possible_texts)
+
+                        # SMS yuborish funksiyasi yordamida yuborish
+                        notification_response = self.send_sms(msisdn, opi, short_number, notification_message)
+
+                    except Exception as e:
+                        return Response({"error": str(e)}, status=500)
                     if response_1 and response_2 and notification_response:
                         return Response({"message": "Barcha SMS muvaffaqiyatli yuborildi!"}, status=status.HTTP_200_OK)
                     else:
