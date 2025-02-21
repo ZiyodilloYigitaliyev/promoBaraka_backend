@@ -22,7 +22,25 @@ from .serializers import *
 
 
 
+def notification_sms(self, msisdn, opi, short_number):
+    today = timezone.now().date()
+    notification = NotificationDaily.objects.filter(date=today).first()
 
+    if notification:
+        # NotificationDaily modelidagi 3 matndan tasodifiy birini tanlab olamiz
+        notification_message = random.choice([notification.text1, notification.text2, notification.text3])
+        sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
+        params = {
+            'opi': opi,
+            'msisdn': msisdn,
+            'short_number': short_number,
+            'message': notification_message
+        }
+        try:
+            requests.get(sms_api_url, params=params)
+        except requests.RequestException as e:
+            print("Failed to send notification SMS:", e)
+            
 class PostbackCallbackView(APIView):
     permission_classes = [AllowAny]
 
@@ -111,10 +129,14 @@ class PostbackCallbackView(APIView):
                     response_1 = self.send_sms(msisdn, opi, short_number, message_1)
                     response_2 = self.send_sms(msisdn, opi, short_number, message_2)
 
-                    # Bazadagi Notification modelidan ma'lumot olish va yuborish
+                    
                     try:
                         notification = NotificationDaily.objects.latest('date')
-                        notification_message = notification.text
+                        # Bo'sh bo'lmagan matnlarni filtrlaymiz
+                        possible_texts = [text for text in [notification.text1, notification.text2, notification.text3] if text]
+                        if not possible_texts:
+                            return Response({"error": "Notification matni topilmadi!"}, status=status.HTTP_404_NOT_FOUND)
+                        notification_message = random.choice(possible_texts)
                         notification_response = self.send_sms(msisdn, opi, short_number, notification_message)
                     except NotificationDaily.DoesNotExist:
                         return Response({"error": "Aktiv Notification topilmadi!"}, status=status.HTTP_404_NOT_FOUND)
@@ -147,24 +169,7 @@ class PostbackCallbackView(APIView):
                 return Response({"error": "07500 uchun kerakli parametrlar yetarli emas!", "missing_params": missing_params}, status=status.HTTP_400_BAD_REQUEST)
 
 
-def notification_sms(self, msisdn, opi, short_number):
-    today = timezone.now().date()
-    notification = NotificationDaily.objects.filter(date=today).first()
 
-    if notification:
-        # NotificationDaily modelidagi 3 matndan tasodifiy birini tanlab olamiz
-        notification_message = random.choice([notification.text1, notification.text2, notification.text3])
-        sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
-        params = {
-            'opi': opi,
-            'msisdn': msisdn,
-            'short_number': short_number,
-            'message': notification_message
-        }
-        try:
-            requests.get(sms_api_url, params=params)
-        except requests.RequestException as e:
-            print("Failed to send notification SMS:", e)
 
 #     ********************* Monthly date *************************
 class PromoMonthlyView(APIView):
