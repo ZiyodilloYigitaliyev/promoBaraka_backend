@@ -1,9 +1,8 @@
 from django.db import models
 from django.utils import timezone
-import pytz
 from datetime import timedelta
-from django.utils import timezone
-import promo
+from django.apps import apps
+
 
 class PostbackRequest(models.Model):
     msisdn = models.CharField(max_length=15)  # Abonentning telefon raqami
@@ -12,8 +11,6 @@ class PostbackRequest(models.Model):
     sent_count = models.IntegerField(default=0)
     def __str__(self):
         return f"{self.msisdn} - {self.short_number}"
-
-
 class PromoEntry(models.Model):
     postback_request = models.ForeignKey(PostbackRequest, on_delete=models.CASCADE)
     text = models.TextField(unique=True)  # Abonentdan kelgan xabar
@@ -21,8 +18,7 @@ class PromoEntry(models.Model):
     used = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.text
-    
+        return self.text    
 class QueryLog(models.Model):
     msisdn = models.CharField(max_length=20, null=True, blank=True)
     opi = models.CharField(max_length=50, null=True, blank=True)
@@ -34,7 +30,6 @@ class QueryLog(models.Model):
 
     def __str__(self):
         return f"{self.short_number} - {self.reqid}"
-
 class Promo(models.Model):
     promo_text = models.CharField(max_length=25, unique=True)
 
@@ -43,11 +38,14 @@ class Promo(models.Model):
 
 
 def get_default_date():
-    NotificationDaily = promo.get_model('promo', 'NotificationDaily')
+    NotificationDaily = apps.get_model('promo', 'NotificationDaily')
     try:
         last_notification = NotificationDaily.objects.latest('date')
         return last_notification.date + timedelta(days=1)
     except NotificationDaily.DoesNotExist:
+        return timezone.now().date()
+    except Exception as e:
+        # Agar boshqa xatolik yuz bersa, hozirgi sanani qaytaradi
         return timezone.now().date()
 
 class NotificationDaily(models.Model):
@@ -58,6 +56,10 @@ class NotificationDaily(models.Model):
 
     def __str__(self):
         return f"Notification for {self.date}"
+
+    class Meta:
+        # latest() metodida "date" maydoni asos sifatida ishlatiladi
+        get_latest_by = 'date'
 
 
 
