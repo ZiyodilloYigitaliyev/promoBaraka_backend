@@ -39,10 +39,11 @@ class Promo(models.Model):
         return self.promo_text
 
 
-class Notification(models.Model):
-    date = models.DateField()
-    opi = models.IntegerField()  # Operator ID (22, 23 yoki 27)
-    text = models.TextField()  # Xabar matni
+class NotificationDaily(models.Model):
+    date = models.DateField(null=True, blank=True)
+    text1 = models.TextField(null=True, blank=True)
+    text2 = models.TextField(null=True, blank=True)
+    text3 = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return f"Notification for {self.date}"

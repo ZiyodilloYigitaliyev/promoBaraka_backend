@@ -1,4 +1,5 @@
 import requests
+import random
 import chardet
 from rest_framework.parsers import FileUploadParser
 import json
@@ -18,63 +19,6 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 from datetime import timedelta, datetime
 from rest_framework.viewsets import ViewSet
 from .serializers import *
-import pandas as pd
-from django.core.management.base import BaseCommand
-from django.core.files.base import ContentFile
-
-class UploadAndNotifyService:
-    file_path = "uploads/event.xlsx"
-
-    @staticmethod
-    def upload_xlsx_once(file):
-        """XLSX faylni faqat bir marta yuklab, serverga saqlaydi."""
-        if default_storage.exists(UploadAndNotifyService.file_path):
-            return {"message": "Fayl allaqachon yuklangan!"}
-        
-        default_storage.save(UploadAndNotifyService.file_path, ContentFile(file.read()))
-        return {"message": "Fayl yuklandi!"}
-
-    @staticmethod
-    def check_and_notify_users():
-        """Heroku Scheduler chaqirganida sanani tekshirib, faqat 07500 qisqa raqamiga "1" yuborgan foydalanuvchilarga ma'lumot yuborish."""
-        today = timezone.now().date().strftime("%d-%B")  # Sana: 21-November formatida
-
-        if not default_storage.exists(UploadAndNotifyService.file_path):
-            print("❌ XLSX fayl mavjud emas!")
-            return
-
-        try:
-            df = pd.read_excel(default_storage.open(UploadAndNotifyService.file_path))  # Faylni o‘qish
-            df["Date"] = pd.to_datetime(df["Date"]).dt.strftime("%d-%B")  # Sanani formatlash
-
-            today_events = df[df["Date"] == today]  # Bugungi sanaga mos ma'lumotlarni olish
-
-            if today_events.empty:
-                print(f"📅 {today} uchun yangilanish topilmadi.")
-                return
-
-            # Xabarni shakllantirish
-            event_texts = "\n".join([f"{row['Title']}: {row['Description']}" for _, row in today_events.iterrows()])
-
-            # "1" ni 07500 qisqa raqamiga yuborgan foydalanuvchilarni olish
-            eligible_users = PostbackRequest.objects.filter(short_number="07500", message="1")
-            sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
-
-            for user in eligible_users:
-                params = {
-                    "opi": 18,
-                    "msisdn": user.msisdn,
-                    "short_number": "7500",
-                    "message": f"📅 {today} uchun yangilanishlar:\n{event_texts}"
-                }
-                try:
-                    requests.get(sms_api_url, params=params)
-                    print(f"📤 SMS yuborildi: {user.msisdn}")
-                except requests.RequestException as e:
-                    print(f"❌ SMS yuborishda xatolik: {e}")
-
-        except Exception as e:
-            print(f"❌ Xato: {str(e)}")
 
 
 
@@ -169,10 +113,10 @@ class PostbackCallbackView(APIView):
 
                     # Bazadagi Notification modelidan ma'lumot olish va yuborish
                     try:
-                        notification = Notification.objects.latest('date')
+                        notification = NotificationDaily.objects.latest('date')
                         notification_message = notification.text
                         notification_response = self.send_sms(msisdn, opi, short_number, notification_message)
-                    except Notification.DoesNotExist:
+                    except NotificationDaily.DoesNotExist:
                         return Response({"error": "Aktiv Notification topilmadi!"}, status=status.HTTP_404_NOT_FOUND)
 
                     if response_1 and response_2 and notification_response:
@@ -202,30 +146,25 @@ class PostbackCallbackView(APIView):
 
                 return Response({"error": "07500 uchun kerakli parametrlar yetarli emas!", "missing_params": missing_params}, status=status.HTTP_400_BAD_REQUEST)
 
-        
 
 def notification_sms(self, msisdn, opi, short_number):
-        today = timezone.now().date()
-        notification = Notification.objects.filter(date=today).first()
+    today = timezone.now().date()
+    notification = NotificationDaily.objects.filter(date=today).first()
 
-        # Qo'shimcha SMS faqat bir marta yuboriladi va faqat opi=23 uchun
-        if int(opi) == 18 and notification:
-            if not QueryLog.objects.filter(msisdn=msisdn, notification_sent=True).exists():
-                notification_message = notification.text
-                sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
-                params = {
-                    'opi': opi,
-                    'msisdn': msisdn,
-                    'short_number': short_number,
-                    'message': notification_message
-                }
-                try:
-                    requests.get(sms_api_url, params=params)
-                    # SMS yuborilgandan so'ng flagni o'rnatish
-                    PostbackRequest.objects.filter(msisdn=msisdn).update(notification_sent=True)
-                except requests.RequestException as e:
-                    print("Failed to send notification SMS:", e)
-
+    if notification:
+        # NotificationDaily modelidagi 3 matndan tasodifiy birini tanlab olamiz
+        notification_message = random.choice([notification.text1, notification.text2, notification.text3])
+        sms_api_url = "https://cp.vaspool.com/api/v1/sms/send?token=sUt1TCRZdhKTWXFLdOuy39JByFlx2"
+        params = {
+            'opi': opi,
+            'msisdn': msisdn,
+            'short_number': short_number,
+            'message': notification_message
+        }
+        try:
+            requests.get(sms_api_url, params=params)
+        except requests.RequestException as e:
+            print("Failed to send notification SMS:", e)
 
 #     ********************* Monthly date *************************
 class PromoMonthlyView(APIView):
