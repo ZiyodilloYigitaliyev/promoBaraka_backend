@@ -1,6 +1,9 @@
 from django.db import models
 from django.utils import timezone
 import pytz
+from datetime import timedelta
+from django.utils import timezone
+import promo
 
 class PostbackRequest(models.Model):
     msisdn = models.CharField(max_length=15)  # Abonentning telefon raqami
@@ -39,8 +42,16 @@ class Promo(models.Model):
         return self.promo_text
 
 
+def get_default_date():
+    NotificationDaily = promo.get_model('promo', 'NotificationDaily')
+    try:
+        last_notification = NotificationDaily.objects.latest('date')
+        return last_notification.date + timedelta(days=1)
+    except NotificationDaily.DoesNotExist:
+        return timezone.now().date()
+
 class NotificationDaily(models.Model):
-    date = models.DateField(null=True, blank=True)
+    date = models.DateField(default=get_default_date)
     text1 = models.TextField(null=True, blank=True)
     text2 = models.TextField(null=True, blank=True)
     text3 = models.TextField(null=True, blank=True)

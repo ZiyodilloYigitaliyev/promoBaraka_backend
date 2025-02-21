@@ -1,8 +1,13 @@
+# IDE va tahrirlagich papkalari
 .vscode/
 .idea/
-#--------------------------------
-venv
-.env
-#--------------------------------
+
+# Virtual muhit va konfiguratsiya fayllari
+venv/
+.env/
+
+# Ma'lumotlar bazasi fayli
 db.sqlite3
-migrations
+
+# Django migratsiyalari (har qanday papkadagi migrations)
+**/migrations/
