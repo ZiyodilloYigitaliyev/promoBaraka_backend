@@ -67,24 +67,16 @@ REST_FRAMEWORK = {
 PROMO_BATCH_SIZE = 10000  # Promo kodlarni bazaga saqlashda bir vaqtning o'zida saqlanadigan promo kodlar soni
 # Celery sozlamalari
 # Redis URL va SSL sozlamalari
-redis_url = os.environ.get("UPSTASH_REDIS_URL")
-
-# SSL parametrlarini faqat rediss:// URL uchun aniqlash
-ssl_options = None
-if redis_url and redis_url.startswith("rediss://"):
-    ssl_options = {
-        "ssl_cert_reqs": ssl.CERT_NONE  # CERT_NONE, CERT_REQUIRED yoki CERT_OPTIONAL
-    }
-
-CELERY_BROKER_URL = redis_url
-CELERY_RESULT_BACKEND = redis_url
+CELERY_BROKER_URL = os.environ.get('UPSTASH_REDIS_URL')
+CELERY_RESULT_BACKEND = os.environ.get('UPSTASH_REDIS_URL')
 
 # Kombu transport sozlamalari
 BROKER_TRANSPORT_OPTIONS = {
     "visibility_timeout": 3600,  # Vazifa timeout (sekundlarda)
+    "ssl": {
+        "ssl_cert_reqs": ssl.CERT_REQUIRED  # Xavfsiz variant
+    },
 }
-if ssl_options:
-    BROKER_TRANSPORT_OPTIONS["ssl"] = ssl_options
 
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
