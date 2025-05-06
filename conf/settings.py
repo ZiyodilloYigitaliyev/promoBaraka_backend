@@ -76,16 +76,15 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Asia/Tashkent'
 
 # Agar Django cache sifatida ham ishlatsangiz:
+REDIS_URL = os.getenv("REDIS_URL")
+
 CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': os.environ.get('UPSTASH_REDIS_REDIS_URL'),
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            # SSL uchun, agar kerak bo‘lsa:
-            'REDIS_CLIENT_KWARGS': {'ssl': True, 'ssl_cert_reqs': None},
-        },
-        'KEY_PREFIX': 'promo_app'
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
     }
 }
 
