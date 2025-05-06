@@ -56,10 +56,38 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
-
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'user': '30/minute',   # misol uchun har foydalanuvchiga 30 so‘rov/min
+    },
 
 }
 
+# Celery broker va natija backend uchun Upstash Redis URL
+CELERY_BROKER_URL = os.environ.get('UPSTASH_REDIS_REDIS_URL')
+CELERY_RESULT_BACKEND = os.environ.get('UPSTASH_REDIS_REDIS_URL')
+
+# Qo‘shimcha Celery sozlamalari
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Tashkent'
+
+# Agar Django cache sifatida ham ishlatsangiz:
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': os.environ.get('UPSTASH_REDIS_REDIS_URL'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            # SSL uchun, agar kerak bo‘lsa:
+            'REDIS_CLIENT_KWARGS': {'ssl': True, 'ssl_cert_reqs': None},
+        },
+        'KEY_PREFIX': 'promo_app'
+    }
+}
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',

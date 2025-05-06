@@ -30,8 +30,14 @@ class QueryLog(models.Model):
 
     def __str__(self):
         return f"{self.short_number} - {self.reqid}"
+
+
 class Promo(models.Model):
-    promo_text = models.CharField(max_length=25, unique=True)
+    promo_text = models.CharField(
+        max_length=25,
+        unique=True,
+        db_index=True,          # indeks qoʻshildi
+    )
 
     def __str__(self):
         return self.promo_text

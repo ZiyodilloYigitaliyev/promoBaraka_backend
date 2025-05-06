@@ -21,7 +21,8 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 from datetime import timedelta, datetime
 from rest_framework.viewsets import ViewSet
 from .serializers import *
-
+from rest_framework.parsers import MultiPartParser
+from .tasks import import_promos
 
 
 def notification_sms(self, msisdn, opi, short_number):
@@ -308,39 +309,50 @@ class PromoEntryList(APIView):
 
 class PromoCreateView(APIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser]  # faylni stream orqali qabul qilish
 
     def post(self, request):
-        # JSON ma'lumotni tekshirish
-        if 'file_content' not in request.data:
-            return Response({"error": "Fayl mazmuni topilmadi."}, status=status.HTTP_400_BAD_REQUEST)
+        """
+        Katta hajmdagi faylni qabul qilib, fon rejimida Celery vazifasiga topshiradi.
+        Har 10,000 ta kodni alohida batch sifatida yuboradi.
+        """
+        # Faylni olish
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response(
+                {"error": "Fayl topilmadi."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        file_content = request.data['file_content']
+        # Faylni qatorma-qator generator bilan o‘qish
+        def line_generator(f):
+            for raw in f:
+                try:
+                    text = raw.decode('utf-8').strip()
+                except UnicodeDecodeError:
+                    # agarda utf-8 bilan o‘qish imkoni bo‘lmasa, latin1 fallback
+                    text = raw.decode('latin-1').strip()
+                yield text
 
-        try:
-            # Fayl kodlash turini aniqlash
-            raw_data = file_content.encode('utf-8', errors='replace')
-            result = chardet.detect(raw_data)
-            encoding = result['encoding']
+        batch_size = 10000
+        batch = []
 
-            # Fayl mazmunini aniqlangan kodlash turi bilan to'liq o'qish
-            file_content = file_content.encode('utf-8').decode(encoding)
-            promo_codes = file_content.splitlines()
+        for line in line_generator(file_obj):
+            if line:
+                batch.append(line)
+            if len(batch) >= batch_size:
+                # har batch ni Celery vazifasiga yuborish
+                import_promos.delay(batch)
+                batch = []
 
-            # Promo kodlarni Promo modeliga saqlash
-            batch_size = 10000  # Har safar 10,000 ta kodni saqlash
-            for i in range(0, len(promo_codes), batch_size):
-                batch = promo_codes[i:i + batch_size]
-                promo_objects = [Promo(promo_text=code.strip()) for code in batch if code.strip()]
-                Promo.objects.bulk_create(promo_objects)  # Har 10,000 ta promo kodni bazaga saqlash
+        # Oxirgi qoldiq batch
+        if batch:
+            import_promos.delay(batch)
 
-            return Response({"message": "Promo kodlar muvaffaqiyatli bazaga qo'shildi!"},
-                            status=status.HTTP_201_CREATED)
-
-        except UnicodeDecodeError as e:
-            return Response({"error": f"Faylni o‘qishda xatolik: {e}"}, status=status.HTTP_400_BAD_REQUEST)
-
-        except Exception as e:
-            return Response({"error": f"Xatolik: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"message": "Import vazifasi fon rejimida boshlandi."},
+            status=status.HTTP_202_ACCEPTED
+        )
 
 
 # notification_sent maydonini yangilaydigan funksiya
