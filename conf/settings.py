@@ -64,6 +64,8 @@ REST_FRAMEWORK = {
     },
 
 }
+PROMO_BATCH_SIZE = 10000  # Promo kodlarni bazaga saqlashda bir vaqtning o'zida saqlanadigan promo kodlar soni
+# Celery sozlamalari
 # Redis URL va SSL sozlamalari
 redis_url = os.environ.get("UPSTASH_REDIS_URL")
 

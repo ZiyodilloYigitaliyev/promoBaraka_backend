@@ -1,17 +1,18 @@
-# tasks.py
-from celery import shared_task
+from conf.celery import shared_task
+from django.conf import settings
 from .models import Promo
 
 @shared_task
-def import_promos(codes: list[str]):
+def process_promo_file(file_content):
     """
-    Berilgan kodlar ro'yxatini bazaga bulk_create orqali yozadi.
-    Takrorlanuvchi (unique) xatolarni e'tiborsiz qoldiradi.
+    Fayldagi promo kodlarni o'qib, ma'lumotlar bazasiga saqlash.
     """
+    codes = file_content.splitlines()
     promo_objs = [
         Promo(promo_text=code.strip())
         for code in codes
-        if code and code.strip()
+        if code.strip()
     ]
-    # ignore_conflicts=True takrorlanuvchi unique errorlarni o‘tkazib yuboradi
+
+    # Takrorlanishlarni e'tiborsiz qoldirish uchun ignore_conflicts=True
     Promo.objects.bulk_create(promo_objs, ignore_conflicts=True)

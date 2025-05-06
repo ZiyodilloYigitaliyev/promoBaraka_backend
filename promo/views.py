@@ -22,7 +22,7 @@ from datetime import timedelta, datetime
 from rest_framework.viewsets import ViewSet
 from .serializers import *
 from rest_framework.parsers import MultiPartParser
-from .tasks import import_promos
+from .tasks import process_promo_file
 
 
 def notification_sms(self, msisdn, opi, short_number):
@@ -309,7 +309,7 @@ class PromoEntryList(APIView):
 
 class PromoCreateView(APIView):
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser]  # faylni stream orqali qabul qilish
+    parser_classes = [MultiPartParser]  # Faylni stream orqali qabul qilish
 
     def post(self, request):
         """
@@ -324,30 +324,52 @@ class PromoCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Fayl kengaytmasini tekshirish
+        if not file_obj.name.endswith('.txt'):
+            return Response(
+                {"error": "Faqat .txt kengaytmali fayllar qabul qilinadi."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         # Faylni qatorma-qator generator bilan o‘qish
         def line_generator(f):
             for raw in f:
                 try:
                     text = raw.decode('utf-8').strip()
                 except UnicodeDecodeError:
-                    # agarda utf-8 bilan o‘qish imkoni bo‘lmasa, latin1 fallback
-                    text = raw.decode('latin-1').strip()
+                    try:
+                        text = raw.decode('latin-1').strip()
+                    except UnicodeDecodeError as e:
+                        print(f"Xatolik: {e}")
+                        continue
                 yield text
 
-        batch_size = 10000
+        # Faylni batchlarga bo'lish va Celery vazifasiga yuborish
+        batch_size = getattr(settings, "PROMO_BATCH_SIZE", 10000)
         batch = []
 
         for line in line_generator(file_obj):
             if line:
                 batch.append(line)
             if len(batch) >= batch_size:
-                # har batch ni Celery vazifasiga yuborish
-                import_promos.delay(batch)
+                try:
+                    import_promos.delay(batch)
+                except Exception as e:
+                    return Response(
+                        {"error": f"Batchni Celeryga yuborishda xatolik yuz berdi: {str(e)}"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
                 batch = []
 
         # Oxirgi qoldiq batch
         if batch:
-            import_promos.delay(batch)
+            try:
+                import_promos.delay(batch)
+            except Exception as e:
+                return Response(
+                    {"error": f"Batchni Celeryga yuborishda xatolik yuz berdi: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
         return Response(
             {"message": "Import vazifasi fon rejimida boshlandi."},

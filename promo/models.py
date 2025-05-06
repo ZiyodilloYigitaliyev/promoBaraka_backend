@@ -33,11 +33,7 @@ class QueryLog(models.Model):
 
 
 class Promo(models.Model):
-    promo_text = models.CharField(
-        max_length=25,
-        unique=True,
-        db_index=True,          # indeks qoʻshildi
-    )
+    promo_text = models.CharField(max_length=50, unique=True)
 
     def __str__(self):
         return self.promo_text
