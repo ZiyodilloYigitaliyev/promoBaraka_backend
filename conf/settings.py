@@ -64,35 +64,7 @@ REST_FRAMEWORK = {
     },
 
 }
-PROMO_BATCH_SIZE = 10000  # Promo kodlarni bazaga saqlashda bir vaqtning o'zida saqlanadigan promo kodlar soni
-# Celery sozlamalari
-# Redis URL va SSL sozlamalari
-CELERY_BROKER_URL = os.environ.get('UPSTASH_REDIS_URL')
-CELERY_RESULT_BACKEND = os.environ.get('UPSTASH_REDIS_URL')
 
-# Kombu transport sozlamalari
-BROKER_TRANSPORT_OPTIONS = {
-    "visibility_timeout": 3600,  # Vazifa timeout (sekundlarda)
-    "ssl": {
-        "ssl_cert_reqs": ssl.CERT_REQUIRED  # Xavfsiz variant
-    },
-}
-
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TASK_SERIALIZER = "json"
-
-# Agar Django cache sifatida Redis ishlatilsa:
-REDIS_URL = os.getenv("UPSTASH_REDIS_URL")
-
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": REDIS_URL,
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        },
-    }
-}
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',

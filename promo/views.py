@@ -22,8 +22,8 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 from datetime import timedelta, datetime
 from rest_framework.viewsets import ViewSet
 from .serializers import *
-from rest_framework.parsers import MultiPartParser
-from .tasks import process_promo_file
+from django.db import IntegrityError
+from django.db.models import Q
 
 
 def notification_sms(self, msisdn, opi, short_number):
@@ -312,31 +312,35 @@ class PromoCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        # JSON ma'lumotni tekshirish
         if 'file_content' not in request.data:
             return Response({"error": "Fayl mazmuni topilmadi."}, status=status.HTTP_400_BAD_REQUEST)
 
         file_content = request.data['file_content']
 
         try:
-            # Fayl kodlash turini aniqlash
             raw_data = file_content.encode('utf-8', errors='replace')
             result = chardet.detect(raw_data)
             encoding = result['encoding']
 
-            # Fayl mazmunini aniqlangan kodlash turi bilan to'liq o'qish
             file_content = file_content.encode('utf-8').decode(encoding)
             promo_codes = file_content.splitlines()
 
-            # Promo kodlarni Promo modeliga saqlash
-            batch_size = 10000  # Har safar 10,000 ta kodni saqlash
+            # Takroriylarni chiqarib tashlash uchun set ishlatamiz
+            promo_codes = list(set([code.strip() for code in promo_codes if code.strip()]))
+
+            batch_size = 10000
+            saved_count = 0
             for i in range(0, len(promo_codes), batch_size):
                 batch = promo_codes[i:i + batch_size]
-                promo_objects = [Promo(promo_text=code.strip()) for code in batch if code.strip()]
-                Promo.objects.bulk_create(promo_objects)  # Har 10,000 ta promo kodni bazaga saqlash
 
-            return Response({"message": "Promo kodlar muvaffaqiyatli bazaga qo'shildi!"},
-                            status=status.HTTP_201_CREATED)
+                # Bazada borlarini chiqarib tashlaymiz
+                existing = set(Promo.objects.filter(promo_text__in=batch).values_list('promo_text', flat=True))
+                new_codes = [Promo(promo_text=code) for code in batch if code not in existing]
+
+                Promo.objects.bulk_create(new_codes)
+                saved_count += len(new_codes)
+
+            return Response({"message": f"{saved_count} ta yangi promo kod muvaffaqiyatli qo'shildi!"}, status=status.HTTP_201_CREATED)
 
         except UnicodeDecodeError as e:
             return Response({"error": f"Faylni o‘qishda xatolik: {e}"}, status=status.HTTP_400_BAD_REQUEST)
