@@ -6,7 +6,7 @@ import dj_database_url
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(os.path.join(BASE_DIR, '.env'))
-
+import ssl
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
@@ -64,15 +64,30 @@ REST_FRAMEWORK = {
     },
 
 }
+# Redis URL va SSL sozlamalari
+redis_url = os.environ.get("UPSTASH_REDIS_URL")
 
-# Celery broker va natija backend uchun Upstash Redis URL
-CELERY_BROKER_URL = os.environ.get('UPSTASH_REDIS_URL')  # Redis broker URL
-CELERY_RESULT_BACKEND = os.environ.get('UPSTASH_REDIS_URL')  # Redis result backend
+# SSL parametrlarini faqat rediss:// URL uchun aniqlash
+ssl_options = None
+if redis_url and redis_url.startswith("rediss://"):
+    ssl_options = {
+        "ssl_cert_reqs": ssl.CERT_NONE  # CERT_NONE, CERT_REQUIRED yoki CERT_OPTIONAL
+    }
 
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
+CELERY_BROKER_URL = redis_url
+CELERY_RESULT_BACKEND = redis_url
 
-# Agar Django cache sifatida ham ishlatsangiz:
+# Kombu transport sozlamalari
+BROKER_TRANSPORT_OPTIONS = {
+    "visibility_timeout": 3600,  # Vazifa timeout (sekundlarda)
+}
+if ssl_options:
+    BROKER_TRANSPORT_OPTIONS["ssl"] = ssl_options
+
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+
+# Agar Django cache sifatida Redis ishlatilsa:
 REDIS_URL = os.getenv("UPSTASH_REDIS_URL")
 
 CACHES = {
@@ -81,10 +96,9 @@ CACHES = {
         "LOCATION": REDIS_URL,
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        }
+        },
     }
 }
-
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
