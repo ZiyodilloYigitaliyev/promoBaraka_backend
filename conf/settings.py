@@ -66,8 +66,8 @@ REST_FRAMEWORK = {
 }
 
 # Celery broker va natija backend uchun Upstash Redis URL
-CELERY_BROKER_URL = os.environ.get('UPSTASH_REDIS_REDIS_URL')
-CELERY_RESULT_BACKEND = os.environ.get('UPSTASH_REDIS_REDIS_URL')
+CELERY_BROKER_URL = os.environ.get('UPSTASH_REDIS_REDIS_URL')  # Redis broker URL
+CELERY_RESULT_BACKEND = os.environ.get('UPSTASH_REDIS_REDIS_URL')  # Redis result backend
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 
