@@ -66,13 +66,14 @@ REST_FRAMEWORK = {
 }
 
 # Celery broker va natija backend uchun Upstash Redis URL
-CELERY_BROKER_URL = os.environ.get('UPSTASH_REDIS_REDIS_URL')  # Redis broker URL
-CELERY_RESULT_BACKEND = os.environ.get('UPSTASH_REDIS_REDIS_URL')  # Redis result backend
+CELERY_BROKER_URL = os.environ.get('UPSTASH_REDIS_URL')  # Redis broker URL
+CELERY_RESULT_BACKEND = os.environ.get('UPSTASH_REDIS_URL')  # Redis result backend
+
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 
 # Agar Django cache sifatida ham ishlatsangiz:
-REDIS_URL = os.getenv("REDIS_URL")
+REDIS_URL = os.getenv("UPSTASH_REDIS_URL")
 
 CACHES = {
     "default": {
