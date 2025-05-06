@@ -23,7 +23,7 @@ from datetime import timedelta, datetime
 from rest_framework.viewsets import ViewSet
 from .serializers import *
 from rest_framework.parsers import MultiPartParser
-from .tasks import process_promo_file, import_promos
+from .tasks import process_promo_file
 
 
 def notification_sms(self, msisdn, opi, short_number):
@@ -354,7 +354,7 @@ class PromoCreateView(APIView):
                 batch.append(line)
             if len(batch) >= batch_size:
                 try:
-                    import_promos.delay(batch)
+                    process_promo_file.delay(batch)
                 except Exception as e:
                     return Response(
                         {"error": f"Batchni Celeryga yuborishda xatolik yuz berdi: {str(e)}"},
@@ -365,7 +365,7 @@ class PromoCreateView(APIView):
         # Oxirgi qoldiq batch
         if batch:
             try:
-                import_promos.delay(batch)
+                process_promo_file.delay(batch)
             except Exception as e:
                 return Response(
                     {"error": f"Batchni Celeryga yuborishda xatolik yuz berdi: {str(e)}"},
