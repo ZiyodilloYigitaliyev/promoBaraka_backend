@@ -1,3 +1,1 @@
-web: gunicorn conf.wsgi --log-file -
-worker: celery -A conf worker --loglevel=info
-beat: celery -A conf beat --loglevel=info
+web: gunicorn conf.wsgi:application --workers 2 --threads 2 --timeout 120 --log-file -
