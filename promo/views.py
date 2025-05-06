@@ -17,12 +17,13 @@ import calendar
 from django.http import JsonResponse
 from django.views import View
 from django.utils.dateparse import parse_datetime
+from django.conf import settings
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from datetime import timedelta, datetime
 from rest_framework.viewsets import ViewSet
 from .serializers import *
 from rest_framework.parsers import MultiPartParser
-from .tasks import process_promo_file
+from .tasks import process_promo_file, import_promos
 
 
 def notification_sms(self, msisdn, opi, short_number):
@@ -308,7 +309,7 @@ class PromoEntryList(APIView):
 
 
 class PromoCreateView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     parser_classes = [MultiPartParser]  # Faylni stream orqali qabul qilish
 
     def post(self, request):
