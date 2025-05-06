@@ -137,14 +137,11 @@ TEMPLATES = [
 # }
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('Database'),
-        'USER': os.getenv('User'),
-        'PASSWORD': os.getenv('Password'),
-        'HOST': os.getenv('Host'),
-        'PORT': os.getenv('Port'),
-    }
+    'default': dj_database_url.config(
+        default=os.getenv('DATABASE_URL'),
+        conn_max_age=600,
+        ssl_require=True
+    )
 }
 
 
