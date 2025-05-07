@@ -4,7 +4,9 @@
 
 # Virtual muhit va konfiguratsiya fayllari
 venv/
-.env/
+.env
+.venv/
+.env.local
 
 # Ma'lumotlar bazasi fayli
 db.sqlite3

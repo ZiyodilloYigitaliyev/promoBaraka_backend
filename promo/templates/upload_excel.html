@@ -1,0 +1,25 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+  <h2>Excel Faylini Yuklash</h2>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="mess {{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+
+    {% if form.errors %}
+      <div class="errors">
+        {{ form.errors }}
+      </div>
+    {% endif %}
+
+    <button type="submit" class="default">Yuklash</button>
+  </form>
+{% endblock %}

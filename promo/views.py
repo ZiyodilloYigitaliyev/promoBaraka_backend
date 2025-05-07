@@ -24,7 +24,14 @@ from rest_framework.viewsets import ViewSet
 from .serializers import *
 from django.db import IntegrityError
 from django.db.models import Q
-
+import pandas as pd
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from .forms import ExcelUploadForm
+from .models import NotificationDaily
+from datetime import datetime
+from django.views.decorators.csrf import csrf_exempt
+from datetime import date 
 
 def notification_sms(self, msisdn, opi, short_number):
     today = timezone.now().date()
@@ -368,3 +375,69 @@ class ResetNotificationView(APIView):
             "message": f"{updated_count} ta yozuv yangilandi",
         }, status=status.HTTP_200_OK)
 
+@csrf_exempt
+def upload_excel_view(request):
+    if request.method == 'POST':
+        form = ExcelUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            excel_file = form.cleaned_data['file']
+            try:
+                df = pd.read_excel(excel_file)
+
+                current_year = date.today().year
+                created = skipped = 0
+
+                for _, row in df.iterrows():
+                    raw_date = row.get('Число')
+                    # Agar bo'sh bo'lsa skip
+                    if pd.isna(raw_date):
+                        skipped += 1
+                        continue
+
+                    # raw_date Timestamp yoki datetime bo'lishi mumkin
+                    if isinstance(raw_date, (pd.Timestamp, )):
+                        day = raw_date.day
+                        month = raw_date.month
+                    else:
+                        # Agar faqat raqam bo'lsa, misol uchun "1" bo'lsa, kun deb o'qiymiz va hozirgi oy bilan birlashtiramiz
+                        day = int(raw_date)
+                        month = date.today().month
+
+                    # Sana obyektини yaratамиз
+                    record_date = date(current_year, month, day)
+
+                    prefix = f"Факт дня: {day:02d}-{month:02d} \n"
+                    text1 = row.get('Событие1') or ''
+                    text2 = row.get('Событие2') or ''
+                    text3 = row.get('Событие3') or ''
+
+                    # Бир хил маълумот бор-ёқлигини текшириш
+                    exists = NotificationDaily.objects.filter(
+                        date=record_date,
+                        text1=prefix + text1,
+                        text2=prefix + text2,
+                        text3=prefix + text3
+                    ).exists()
+                    if exists:
+                        skipped += 1
+                        continue
+
+                    # Яратиш
+                    NotificationDaily.objects.create(
+                        date=record_date,
+                        text1=prefix + text1,
+                        text2=prefix + text2,
+                        text3=prefix + text3,
+                    )
+                    created += 1
+
+                messages.success(request,
+                    f"Import yakunlandi: {created} ta yangi yozuv, {skipped} ta o‘tkazildi.")
+                return redirect('upload_excel')
+
+            except Exception as e:
+                messages.error(request, f"Xatolik: {e}")
+    else:
+        form = ExcelUploadForm()
+
+    return render(request, 'upload_excel.html', {'form': form})
