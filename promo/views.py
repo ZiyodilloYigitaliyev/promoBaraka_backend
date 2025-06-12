@@ -32,6 +32,10 @@ from .models import NotificationDaily
 from datetime import datetime
 from django.views.decorators.csrf import csrf_exempt
 from datetime import date 
+import logging
+import pytz
+
+logger = logging.getLogger(__name__)
 
 def notification_sms(self, msisdn, opi, short_number):
     today = timezone.now().date()
@@ -64,10 +68,11 @@ class PostbackCallbackView(APIView):
             'message': custom_message
         }
         try:
-            sms_response = requests.get(sms_api_url, params=params)
-            sms_response.raise_for_status()
-            return sms_response
+            response = requests.get(sms_api_url, params=params)
+            response.raise_for_status()
+            return response
         except requests.RequestException as e:
+            logger.exception("SMS yuborishda xatolik: %s", str(e))
             return None
 
     def get(self, request, *args, **kwargs):
@@ -75,126 +80,109 @@ class PostbackCallbackView(APIView):
         opi = request.query_params.get('opi')
         short_number = request.query_params.get('short_number')
         text = request.query_params.get('message')
+        reqid = request.query_params.get('reqid')
+        result = request.query_params.get('result')
+
+        logger.info(f"Postback GET: msisdn={msisdn}, opi={opi}, short_number={short_number}, text={text}, reqid={reqid}, result={result}")
+
+        if not msisdn or not opi or not short_number:
+            return Response({"error": "Kerakli parametrlar yetarli emas!"}, status=status.HTTP_400_BAD_REQUEST)
 
         if short_number == "7500":
-            if msisdn and opi and text:
-                promo = Promo.objects.filter(promo_text=text).first()
-                if not promo:
-                    custom_message = "Jo’natilgan Promokod noto’g’ri!"
-                    response = self.send_sms(msisdn, opi, short_number, custom_message)
-                    return Response({"message": custom_message}, status=status.HTTP_200_OK)
+            if not text:
+                return Response({"error": "Promokod (message) yo'q!"}, status=status.HTTP_400_BAD_REQUEST)
 
-                if PromoEntry.objects.filter(postback_request__msisdn=msisdn, text=text).exists():
-                    custom_message = "Quyidagi Promokod avval ro’yxatdan o’tkazilgan!"
-                    response = self.send_sms(msisdn, opi, short_number, custom_message)
-                    return Response({"message": custom_message}, status=status.HTTP_200_OK)
+            promo = Promo.objects.filter(promo_text=text).first()
+            if not promo:
+                custom_message = "Jo’natilgan Promokod noto’g’ri!"
+                self.send_sms(msisdn, opi, short_number, custom_message)
+                return Response({"message": custom_message}, status=status.HTTP_200_OK)
 
-                postback_request, created = PostbackRequest.objects.get_or_create(
-                    msisdn=msisdn,
-                    defaults={'opi': opi, 'short_number': short_number, 'sent_count': 1}
-                )
-                if not created:
-                    postback_request.sent_count += 1
-                    postback_request.save()
+            if PromoEntry.objects.filter(postback_request__msisdn=msisdn, text=text).exists():
+                custom_message = "Quyidagi Promokod avval ro’yxatdan o’tkazilgan!"
+                self.send_sms(msisdn, opi, short_number, custom_message)
+                return Response({"message": custom_message}, status=status.HTTP_200_OK)
 
-                PromoEntry.objects.create(
-                    postback_request=postback_request,
-                    text=text,
-                    created_at=timezone.now()
-                )
+            postback_request, created = PostbackRequest.objects.get_or_create(
+                msisdn=msisdn,
+                defaults={'opi': opi, 'short_number': short_number, 'sent_count': 1}
+            )
+            if not created:
+                postback_request.sent_count += 1
+                postback_request.save()
 
-                custom_message = (
-                    "Tabriklaymiz! Promokod qabul qilindi!\n"
-                    "\"Boriga baraka\" ko'rsatuvini har Juma soat 21:00 da Jonli efirda tomosha qiling!"
-                )
-                response = self.send_sms(msisdn, opi, short_number, custom_message)
-                if response:
-                    return Response({"message": custom_message}, status=status.HTTP_200_OK)
-                else:
-                    return Response({"error": "Failed to send SMS"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            PromoEntry.objects.create(
+                postback_request=postback_request,
+                text=text,
+                created_at=timezone.now()
+            )
+
+            success_message = (
+                "Tabriklaymiz! Promokod qabul qilindi!\n"
+                "\"Boriga baraka\" ko'rsatuvini har Juma soat 21:00 da Jonli efirda tomosha qiling!"
+            )
+            response = self.send_sms(msisdn, opi, short_number, success_message)
+            if response:
+                return Response({"message": success_message}, status=status.HTTP_200_OK)
             else:
-                return Response({"error": "7500 uchun kerakli parametrlar yetarli emas!"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": "SMS yuborishda muammo bo‘ldi!"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         elif short_number == "07500":
-            reqid = request.query_params.get('reqid')
-            result = request.query_params.get('result')
+            if not (reqid and result):
+                return Response({
+                    "error": "07500 uchun kerakli parametrlar yetarli emas!",
+                    "missing_params": [p for p in ['reqid', 'result'] if not request.query_params.get(p)]
+                }, status=status.HTTP_400_BAD_REQUEST)
 
-            if msisdn and opi and reqid and result:
-                try:
-                    QueryLog.objects.create(
-                        msisdn=msisdn,
-                        opi=opi,
-                        short_number=short_number,
-                        reqid=reqid,
-                        result=result
-                    )
+            try:
+                QueryLog.objects.create(
+                    msisdn=msisdn,
+                    opi=opi,
+                    short_number=short_number,
+                    reqid=reqid,
+                    result=result
+                )
 
-                    message_1 = "Sizning arizangiz qabul qilindi, javob SMSni kuting."
-                    message_2 = (
-                        "Boriga Baraka Kapital Shou uchun kodingiz qabul qilindi. "
-                        "Efir Zo'r TV kanalida har juma soat 20.20 da. "
-                        "Spasibo! Kod prinyat. Sledite za efirom na Zo'r TV kanale kajduyu pyatnitsu v 20.20. "
-                        "Tel: 998(78)147-78-89."
-                    )
+                response_1 = self.send_sms(msisdn, opi, short_number, "Sizning arizangiz qabul qilindi, javob SMSni kuting.")
+                response_2 = self.send_sms(msisdn, opi, short_number,
+                    "Boriga Baraka Kapital Shou uchun kodingiz qabul qilindi. "
+                    "Efir Zo'r TV kanalida har juma soat 20.20 da. "
+                    "Spasibo! Kod prinyat. Sledite za efirom na Zo'r TV kanale kajduyu pyatnitsu v 20.20. "
+                    "Tel: 998(78)147-78-89."
+                )
 
-                    response_1 = self.send_sms(msisdn, opi, short_number, message_1)
-                    response_2 = self.send_sms(msisdn, opi, short_number, message_2)
+                tashkent_now = timezone.now().astimezone(pytz.timezone("Asia/Tashkent"))
+                today = tashkent_now.date()
 
-                    
-                    try:
-                        # Server vaqti (odatda UTC) ni olish
-                        server_now = timezone.now()
+                notification = NotificationDaily.objects.filter(date=today).first()
+                if not notification:
+                    return Response({"error": "Bugungi Notification mavjud emas!"}, status=404)
 
-                        # Tashkent vaqti uchun timezone aniqlash
-                        tashkent_tz = pytz.timezone("Asia/Tashkent")
-                        tashkent_now = server_now.astimezone(tashkent_tz)
-                        today = tashkent_now.date()  # Bugungi sana, Tashkent vaqtiga mos
+                texts = [t for t in [notification.text1, notification.text2, notification.text3] if t]
+                if not texts:
+                    return Response({"error": "Notification matni topilmadi!"}, status=404)
 
-                        # Bugungi sana uchun NotificationDaily yozuvini olish
-                        notification = NotificationDaily.objects.filter(date=today).first()
-                        if not notification:
-                            return Response({"error": "Bugungi Notification topilmadi!"}, status=404)
+                notification_message = random.choice(texts)
+                response_3 = self.send_sms(msisdn, opi, short_number, notification_message)
 
-                        # text1, text2, text3 maydonlaridan bo'sh bo'lmaganlarini tanlab olish
-                        possible_texts = [text for text in [notification.text1, notification.text2, notification.text3] if text]
-                        if not possible_texts:
-                            return Response({"error": "Notification matni topilmadi!"}, status=404)
+                if all([response_1, response_2, response_3]):
+                    return Response({"message": "Barcha SMS yuborildi!"}, status=status.HTTP_200_OK)
+                else:
+                    errors = []
+                    if not response_1:
+                        errors.append("SMS 1 yuborilmadi!")
+                    if not response_2:
+                        errors.append("SMS 2 yuborilmadi!")
+                    if not response_3:
+                        errors.append("Notification SMS yuborilmadi!")
+                    return Response({"error": "Ba'zi SMS yuborilmadi", "details": errors}, status=500)
 
-                        # Tasodifiy matn tanlash
-                        notification_message = random.choice(possible_texts)
+            except Exception as e:
+                logger.exception("Postback (07500) xatolik: %s", str(e))
+                return Response({"error": "Server xatoligi", "details": str(e)}, status=500)
 
-                        # SMS yuborish funksiyasi yordamida yuborish
-                        notification_response = self.send_sms(msisdn, opi, short_number, notification_message)
-
-                    except Exception as e:
-                        return Response({"error": str(e)}, status=500)
-                    if response_1 and response_2 and notification_response:
-                        return Response({"message": "Barcha SMS muvaffaqiyatli yuborildi!"}, status=status.HTTP_200_OK)
-                    else:
-                        errors = []
-                        if not response_1:
-                            errors.append("SMS 1 yuborilmadi!")
-                        if not response_2:
-                            errors.append("SMS 2 yuborilmadi!")
-                        if not notification_response:
-                            errors.append("Notification SMS yuborilmadi!")
-                        return Response({"error": "SMS yuborishda xatolik yuz berdi!", "details": errors}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-                except Exception as e:
-                    return Response({"error": "Bazaga saqlashda yoki SMS yuborishda xatolik yuz berdi!", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            else:
-                missing_params = []
-                if not msisdn:
-                    missing_params.append('msisdn')
-                if not opi:
-                    missing_params.append('opi')
-                if not reqid:
-                    missing_params.append('reqid')
-                if not result:
-                    missing_params.append('result')
-
-                return Response({"error": "07500 uchun kerakli parametrlar yetarli emas!", "missing_params": missing_params}, status=status.HTTP_400_BAD_REQUEST)
-
+        else:
+            return Response({"error": f"Noma'lum short_number: {short_number}"}, status=400)
 
 
 
